@@ -1,0 +1,80 @@
+<div class="historian-tag-browser-panel">
+  <ng-container *ngIf="widgetTitlePanel">
+    <ng-container *ngTemplateOutlet="widgetTitlePanel"></ng-container>
+  </ng-container>
+
+  <div class="tag-browser-toolbar">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput
+             placeholder="Filter tags..."
+             [(ngModel)]="searchText"
+             (ngModelChange)="onSearchChange()">
+      <button *ngIf="searchText" matSuffix mat-icon-button (click)="searchText = ''; onSearchChange()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <button mat-raised-button
+            color="primary"
+            class="trend-btn"
+            [disabled]="getSelectedCount() === 0"
+            (click)="sendToTrend()">
+      <mat-icon>show_chart</mat-icon>
+      Trend ({{ getSelectedCount() }})
+    </button>
+  </div>
+
+  <div class="tag-browser-header">
+    <mat-checkbox [checked]="selectAll"
+                  (change)="toggleSelectAll()"
+                  class="header-checkbox">
+    </mat-checkbox>
+    <span class="header-col tag-key">Tag</span>
+    <span class="header-col tag-desc">Description</span>
+    <span class="header-col tag-value">Value</span>
+    <span class="header-col tag-units">Units</span>
+    <span class="header-col tag-quality">Quality</span>
+  </div>
+
+  <div class="tag-browser-list" *ngIf="!loading">
+    <div *ngFor="let tag of filteredTags"
+         class="tag-row"
+         [class.selected]="tag.selected">
+
+      <mat-checkbox [(ngModel)]="tag.selected"
+                    class="tag-checkbox">
+      </mat-checkbox>
+
+      <span class="tag-col tag-key" [title]="tag.key">
+        {{ tag.key }}
+      </span>
+
+      <span class="tag-col tag-desc" [title]="tag.description">
+        {{ tag.description }}
+      </span>
+
+      <span class="tag-col tag-value">
+        {{ tag.value !== null ? tag.value : '--' }}
+      </span>
+
+      <span class="tag-col tag-units">
+        {{ tag.engUnits }}
+      </span>
+
+      <span class="tag-col tag-quality" [class]="tag.qualityCss">
+        {{ tag.qualityText }}
+      </span>
+    </div>
+
+    <div *ngIf="filteredTags.length === 0" class="empty-state">
+      <mat-icon>label_off</mat-icon>
+      <span>No tags found</span>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading-state">
+    <mat-spinner diameter="32"></mat-spinner>
+    <span>Loading tags...</span>
+  </div>
+</div>

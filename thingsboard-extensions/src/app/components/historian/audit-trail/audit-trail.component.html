@@ -1,0 +1,71 @@
+<div class="historian-audit-panel">
+  <ng-container *ngIf="widgetTitlePanel">
+    <ng-container *ngTemplateOutlet="widgetTitlePanel"></ng-container>
+  </ng-container>
+
+  <div class="audit-toolbar">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Search</mat-label>
+      <input matInput [(ngModel)]="searchText" (ngModelChange)="onSearchChange()" placeholder="Entity, user, action...">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Entity Type</mat-label>
+      <mat-select [(value)]="filterEntityType" (selectionChange)="onFilterChange()">
+        <mat-option *ngFor="let t of entityTypes" [value]="t">{{ t || 'All' }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Action</mat-label>
+      <mat-select [(value)]="filterActionType" (selectionChange)="onFilterChange()">
+        <mat-option *ngFor="let a of actionTypes" [value]="a">{{ a || 'All' }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button mat-icon-button (click)="refresh()" matTooltip="Refresh">
+      <mat-icon>refresh</mat-icon>
+    </button>
+    <button mat-icon-button (click)="exportCSV()" matTooltip="Export CSV">
+      <mat-icon>download</mat-icon>
+    </button>
+  </div>
+
+  <div class="audit-table-container">
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Entity Type</th>
+          <th>Entity</th>
+          <th>Action</th>
+          <th>User</th>
+          <th>Status</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let entry of filteredEntries">
+          <td class="ts-col">{{ formatTime(entry.createdTime) }}</td>
+          <td>{{ entry.entityType }}</td>
+          <td>{{ entry.entityName }}</td>
+          <td>{{ entry.actionType }}</td>
+          <td>{{ entry.userName }}</td>
+          <td [class]="getStatusClass(entry.actionStatus)">{{ entry.actionStatus }}</td>
+          <td class="detail-col" [title]="entry.actionData">{{ entry.actionData }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="audit-empty" *ngIf="filteredEntries.length === 0 && !isLoading">
+      No audit entries found.
+    </div>
+  </div>
+
+  <div class="audit-footer">
+    <span class="entry-count">{{ filteredEntries.length }} entries</span>
+    <button mat-stroked-button *ngIf="hasMore" (click)="loadMore()" [disabled]="isLoading">
+      Load More
+    </button>
+  </div>
+</div>

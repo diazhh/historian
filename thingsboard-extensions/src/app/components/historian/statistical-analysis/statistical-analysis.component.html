@@ -1,0 +1,45 @@
+<div class="historian-statistical-panel">
+  <ng-container *ngIf="widgetTitlePanel">
+    <ng-container *ngTemplateOutlet="widgetTitlePanel"></ng-container>
+  </ng-container>
+
+  <div class="stat-toolbar">
+    <mat-button-toggle-group [value]="chartMode" (change)="setMode($event.value)">
+      <mat-button-toggle value="histogram">Histogram</mat-button-toggle>
+      <mat-button-toggle value="scatter">XY Scatter</mat-button-toggle>
+      <mat-button-toggle value="spc">SPC (I-MR)</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <mat-form-field appearance="outline" class="tag-select" *ngIf="availableTags.length > 0">
+      <mat-label>{{ chartMode === 'scatter' ? 'X Tag' : 'Tag' }}</mat-label>
+      <mat-select [(value)]="selectedTagX" (selectionChange)="onTagSelectionChange()">
+        <mat-option *ngFor="let t of availableTags" [value]="t">{{ t }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="tag-select" *ngIf="chartMode === 'scatter' && availableTags.length > 1">
+      <mat-label>Y Tag</mat-label>
+      <mat-select [(value)]="selectedTagY" (selectionChange)="onTagSelectionChange()">
+        <mat-option *ngFor="let t of availableTags" [value]="t">{{ t }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="bins-input" *ngIf="chartMode === 'histogram'">
+      <mat-label>Bins</mat-label>
+      <input matInput type="number" [(ngModel)]="bins" (ngModelChange)="onBinsChange()" min="5" max="100">
+    </mat-form-field>
+  </div>
+
+  <div class="stat-chart-area">
+    <div #statChart class="stat-echart-container"></div>
+  </div>
+
+  <div class="stat-summary">
+    <span class="stat-item"><b>TWA:</b> {{ stats.twa }}</span>
+    <span class="stat-item"><b>Min:</b> {{ stats.min }}</span>
+    <span class="stat-item"><b>Max:</b> {{ stats.max }}</span>
+    <span class="stat-item"><b>StdDev:</b> {{ stats.stdDev }}</span>
+    <span class="stat-item"><b>Count:</b> {{ stats.count }}</span>
+    <span class="stat-item"><b>Range:</b> {{ stats.range }}</span>
+  </div>
+</div>

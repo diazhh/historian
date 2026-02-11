@@ -1,0 +1,114 @@
+.historian-data-grid-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.grid-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 0;
+
+  .interval-select {
+    width: 120px;
+
+    ::ng-deep .mat-mdc-form-field-wrapper { padding-bottom: 0; }
+    ::ng-deep .mat-mdc-text-field-wrapper { height: 40px; }
+  }
+
+  .spacer { flex: 1; }
+}
+
+.grid-table-container {
+  flex: 1;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
+
+.grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th, td {
+    padding: 4px 8px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    white-space: nowrap;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: #fafafa;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.54);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    z-index: 1;
+  }
+
+  .col-timestamp {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.54);
+    min-width: 150px;
+  }
+
+  .col-value {
+    text-align: right;
+    font-family: 'Roboto Mono', monospace;
+    min-width: 80px;
+  }
+
+  .col-units {
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba(0, 0, 0, 0.38);
+  }
+
+  tbody tr:hover {
+    background: rgba(0, 0, 0, 0.02);
+  }
+}
+
+.cell-alarm-hh {
+  background-color: rgba(211, 47, 47, 0.15) !important;
+  color: #b71c1c;
+  font-weight: 500;
+}
+
+.cell-alarm-h {
+  background-color: rgba(245, 124, 0, 0.12) !important;
+  color: #e65100;
+}
+
+.cell-alarm-l {
+  background-color: rgba(251, 192, 45, 0.12) !important;
+  color: #f57f17;
+}
+
+.cell-alarm-ll {
+  background-color: rgba(211, 47, 47, 0.15) !important;
+  color: #b71c1c;
+  font-weight: 500;
+}
+
+.cell-null {
+  color: rgba(0, 0, 0, 0.2);
+}
+
+.empty-state,
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: rgba(0, 0, 0, 0.38);
+  mat-icon { font-size: 48px; width: 48px; height: 48px; margin-bottom: 8px; }
+  span { font-size: 14px; }
+}

@@ -1,0 +1,58 @@
+<div class="historian-report-panel">
+  <ng-container *ngIf="widgetTitlePanel">
+    <ng-container *ngTemplateOutlet="widgetTitlePanel"></ng-container>
+  </ng-container>
+
+  <div class="report-toolbar">
+    <mat-button-toggle-group [value]="reportType" (change)="setReportType($event.value)">
+      <mat-button-toggle value="shift">Shift</mat-button-toggle>
+      <mat-button-toggle value="daily">Daily</mat-button-toggle>
+      <mat-button-toggle value="monthly">Monthly</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <button mat-raised-button color="primary" (click)="generateReport()" [disabled]="isLoading">
+      {{ isLoading ? 'Generating...' : 'Generate' }}
+    </button>
+
+    <button mat-stroked-button (click)="exportCSV()" *ngIf="reportGenerated">Export CSV</button>
+    <button mat-stroked-button (click)="printReport()" *ngIf="reportGenerated">Print</button>
+  </div>
+
+  <div class="report-content" *ngIf="reportGenerated">
+    <div class="report-header">
+      <h3>{{ reportTitle }}</h3>
+      <span class="report-timestamp">Generated: {{ reportTimestamp }}</span>
+    </div>
+
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Tag</th>
+          <th>Description</th>
+          <th>Units</th>
+          <th>TWA</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>StdDev</th>
+          <th>Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of reportRows">
+          <td class="tag-col">{{ row.tag }}</td>
+          <td>{{ row.description }}</td>
+          <td>{{ row.units }}</td>
+          <td class="num-col">{{ row.twa }}</td>
+          <td class="num-col">{{ row.min }}</td>
+          <td class="num-col">{{ row.max }}</td>
+          <td class="num-col">{{ row.stdDev }}</td>
+          <td class="num-col">{{ row.count }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="report-empty" *ngIf="!reportGenerated && !isLoading">
+    Select tags and click Generate to create a report.
+  </div>
+</div>

@@ -1,0 +1,66 @@
+<div class="historian-tag-search-panel">
+  <ng-container *ngIf="widgetTitlePanel">
+    <ng-container *ngTemplateOutlet="widgetTitlePanel"></ng-container>
+  </ng-container>
+
+  <div class="search-toolbar">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput
+             placeholder="Search tags by name, description, area..."
+             [(ngModel)]="searchText"
+             (ngModelChange)="onSearchChange()">
+      <button *ngIf="searchText" matSuffix mat-icon-button (click)="searchText = ''; onSearchChange()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <button mat-raised-button color="primary" class="trend-btn"
+            [disabled]="getSelectedCount() === 0"
+            (click)="sendToTrend()">
+      <mat-icon>show_chart</mat-icon>
+      Trend ({{ getSelectedCount() }})
+    </button>
+  </div>
+
+  <div class="search-status" *ngIf="indexReady">
+    <span>{{ totalTags }} tags indexed</span>
+    <span *ngIf="results.length > 0"> | {{ results.length }} results</span>
+    <button *ngIf="getSelectedCount() > 0" mat-button (click)="clearSelection()" class="clear-btn">
+      Clear selection
+    </button>
+  </div>
+
+  <div class="search-results" *ngIf="!loading">
+    <div *ngFor="let tag of results"
+         class="search-result-row"
+         [class.selected]="isSelected(tag)"
+         (click)="toggleTag(tag)">
+      <mat-checkbox [checked]="isSelected(tag)" class="result-checkbox"></mat-checkbox>
+      <div class="result-info">
+        <span class="result-key">{{ tag.key }}</span>
+        <span class="result-desc">{{ tag.description }}</span>
+      </div>
+      <div class="result-meta">
+        <span class="result-device">{{ tag.deviceName }}</span>
+        <span class="result-area" *ngIf="tag.area">{{ tag.area }}</span>
+        <span class="result-units" *ngIf="tag.engUnits">[{{ tag.engUnits }}]</span>
+      </div>
+    </div>
+
+    <div *ngIf="searchText && results.length === 0 && indexReady" class="empty-state">
+      <mat-icon>search_off</mat-icon>
+      <span>No tags match your search</span>
+    </div>
+
+    <div *ngIf="!searchText && indexReady" class="empty-state">
+      <mat-icon>search</mat-icon>
+      <span>Type to search tags</span>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading-state">
+    <mat-spinner diameter="32"></mat-spinner>
+    <span>Building tag index...</span>
+  </div>
+</div>

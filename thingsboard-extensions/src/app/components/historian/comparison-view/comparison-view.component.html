@@ -1,0 +1,40 @@
+<div class="historian-comparison-panel">
+  <ng-container *ngIf="widgetTitlePanel">
+    <ng-container *ngTemplateOutlet="widgetTitlePanel"></ng-container>
+  </ng-container>
+
+  <div class="comp-toolbar">
+    <mat-button-toggle-group [value]="compareMode" (change)="setMode($event.value)">
+      <mat-button-toggle value="time-shift">Time Shift</mat-button-toggle>
+      <mat-button-toggle value="equipment">Equipment</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <mat-form-field appearance="outline" class="tag-select" *ngIf="availableTags.length > 0">
+      <mat-label>Tag</mat-label>
+      <mat-select [(value)]="selectedTag" (selectionChange)="onTagChange()">
+        <mat-option *ngFor="let t of availableTags" [value]="t">{{ t }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="shift-input" *ngIf="compareMode === 'time-shift'">
+      <mat-label>Shift (days)</mat-label>
+      <input matInput type="number" [(ngModel)]="shiftDays" (ngModelChange)="onShiftChange()" min="1" max="365">
+    </mat-form-field>
+
+    <button mat-stroked-button *ngIf="compareMode === 'equipment'" (click)="loadSiblingDevices()">
+      Load Siblings
+    </button>
+  </div>
+
+  <div class="comp-devices" *ngIf="compareMode === 'equipment' && equipmentDevices.length > 0">
+    <mat-checkbox *ngFor="let dev of equipmentDevices"
+                  [checked]="selectedDevices.includes(dev.id)"
+                  (change)="$event.checked ? selectedDevices.push(dev.id) : selectedDevices.splice(selectedDevices.indexOf(dev.id), 1); loadComparison()">
+      {{ dev.name }}
+    </mat-checkbox>
+  </div>
+
+  <div class="comp-chart-area">
+    <div #compChart class="comp-echart-container"></div>
+  </div>
+</div>
