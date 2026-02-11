@@ -64,8 +64,10 @@ export class TbClient {
   // ── Attributes ───────────────────────────────────────────────────────
 
   async setClientAttributes(deviceId, payload) {
+    // CLIENT_SCOPE can only be set via MQTT. Use SHARED_SCOPE via REST
+    // which is readable from widgets the same way as CLIENT_SCOPE.
     await this.http.post(
-      `/api/plugins/telemetry/DEVICE/${deviceId}/attributes/CLIENT_SCOPE`,
+      `/api/plugins/telemetry/DEVICE/${deviceId}/attributes/SHARED_SCOPE`,
       payload
     );
   }

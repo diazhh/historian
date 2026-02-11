@@ -8,41 +8,51 @@
 
 ## 1. Concepto General
 
-Tu software se conecta a ThingsBoard como un **Device**. Cada Device agrupa un conjunto de tags. Tu software envía dos cosas:
+Cada tag (punto de medición) del proceso industrial es un **Device** en ThingsBoard. El nombre del Device es el nombre del tag (ej: `TI-101-01`).
 
-1. **Datos estáticos del tag** (descripción, unidades, rangos, alarmas) → van como **client-side attributes**
-2. **Datos dinámicos del tag** (valor, timestamp, quality) → van como **telemetría**
+Cada Device-tag envía dos cosas:
 
-La jerarquía de planta (Sitio → Área → Equipo) se construye por separado con **Assets** en ThingsBoard. Eso no es responsabilidad del software de recolección. Los Assets se conectan a los Devices mediante relaciones. Tu software solo envía datos a Devices.
+1. **Metadatos estáticos** (descripción, unidades, rangos, alarmas) → van como **client-side attributes** del Device
+2. **Datos dinámicos** (valor y quality) → van como **telemetría** del Device con keys `PV` y `Q`
+
+La jerarquía de planta (Sitio → Área → Equipo) se construye con **Assets** en ThingsBoard. Los Assets se conectan a los Devices-tag mediante relaciones `Contains`. La hoja del árbol siempre es un Device = un tag.
 
 ```
-ASSETS (los crea el equipo de ThingsBoard, NO tu software):
-  Asset: "Refinería Norte"
-    └── Asset: "CDU"
-        └── Asset: "Columna T-101"
-            └── relación Contains → Device: "T101-INST"  ← TU SOFTWARE ENVÍA AQUÍ
+ASSETS (jerarquía de planta):
+  Asset: "Refinería Norte"        (Asset Profile: Sitio)
+    └── Asset: "CDU"              (Asset Profile: AreaProceso)
+        └── Asset: "T-101"        (Asset Profile: Equipo)
+            ├── Contains → Device: "TI-101-01"  ← tag de temperatura
+            ├── Contains → Device: "PI-101"     ← tag de presión
+            └── Contains → Device: "XV-101"     ← tag de válvula
 
-DEVICES (tu software se conecta como Device vía MQTT):
-  Device: "T101-INST"
-    ├── Client Attributes: metadatos estáticos de cada tag
-    └── Telemetry: valores + timestamp + quality de cada tag
+DEVICES (cada uno es un tag individual):
+  Device: "TI-101-01"
+    ├── Client Attributes: description, engUnits, rangeLo, rangeHi, alarmH, alarmHH, ...
+    └── Telemetry: PV (valor), Q (quality)
 ```
 
 ---
 
-## 2. Agrupación: ¿Cuántos Devices crear?
+## 2. Modelo: 1 Device = 1 Tag
 
-Un Device = un grupo lógico de tags. La agrupación depende de cómo esté organizada tu fuente de datos:
+Cada tag es su propio Device. El nombre del Device es el nombre del tag.
 
-| Criterio | Ejemplo de Device | Tags dentro |
-|----------|------------------|-------------|
-| Por equipo | `T101-INST` | Todos los instrumentos de la columna T-101 |
-| Por controlador/PLC | `PLC-CDU-01` | Todos los tags de un PLC específico |
-| Por sección | `CDU-OVERHEAD` | Todos los instrumentos del overhead de la CDU |
+| Concepto | Implementación en ThingsBoard |
+|----------|-------------------------------|
+| Tag individual | Device (nombre = nombre del tag, ej: `TI-101-01`) |
+| Metadatos del tag | Client Attributes directos en el Device |
+| Valor del tag | Telemetry key `PV` |
+| Quality del tag | Telemetry key `Q` |
+| Agrupación por equipo | Asset con relación `Contains` → Device |
 
-**Límite recomendado**: 200-500 tags por Device. Si un equipo tiene más, subdividir (ej: `T101-TEMPS`, `T101-PRESS`, `T101-FLOWS`).
+**Ventajas de este modelo**:
+- **Alarm Rules genéricas**: Una sola regla `PV > attribute.alarmHH` en el Device Profile aplica automáticamente a los 500 tags
+- **Entity Aliases nativos**: Filtrar/agrupar tags con filtros estándar de TB (por tipo, por relación, por atributo)
+- **Atributos planos**: No se necesita parsear JSON anidado — cada metadato es un atributo directo del Device
+- **Telemetría simple**: Solo dos keys (`PV` y `Q`) — no hay prefijos de tag en los nombres
 
-Cada Device tiene su propio **Access Token** (lo da el equipo de ThingsBoard).
+Cada Device tiene su propio **Access Token** (lo da el equipo de ThingsBoard o se genera por script).
 
 ---
 
@@ -51,101 +61,81 @@ Cada Device tiene su propio **Access Token** (lo da el equipo de ThingsBoard).
 | Parámetro | Valor |
 |-----------|-------|
 | Broker | `mqtt://[IP_THINGSBOARD]:1883` o `mqtts://[IP]:8883` (TLS) |
-| Client ID | Nombre del Device (ej: `T101-INST`) |
+| Client ID | Nombre del tag (ej: `TI-101-01`) |
 | Username | Access Token del Device (te lo da el equipo TB) |
 | Password | _(vacío)_ |
 | Keep Alive | 60 seg |
 | QoS | 1 |
 
+**Nota**: Si el software de recolección maneja muchos tags, puede multiplexar la conexión MQTT usando un **Gateway Device** de TB. El gateway se conecta una vez y publica datos en nombre de múltiples dispositivos usando el tópico `v1/gateway/telemetry` y `v1/gateway/attributes`. Esto evita tener 500 conexiones MQTT simultáneas.
+
 ---
 
-## 4. Envío de Datos Estáticos (Client-Side Attributes)
+## 4. Envío de Metadatos Estáticos (Client-Side Attributes)
 
 **Tópico MQTT**: `v1/devices/me/attributes`
 
-**Cuándo enviar**: Al conectar, y cuando cambie algún dato estático (ej: se reconfigura un tag en el DCS).
+**Cuándo enviar**: Al conectar, y cuando cambie algún dato estático.
 
-Tu software tiene toda la información del tag en el DCS. La parte estática la envías como un JSON donde la clave es el nombre del tag:
+Los metadatos se envían como atributos planos directamente en el Device:
+
+### Ejemplo — Tag analógico (temperatura)
 
 ```json
 {
-  "tagConfig": {
-    "TI-101-01.PV": {
-      "description": "Temperatura plato 1 columna T-101",
-      "engUnits": "°C",
-      "dataType": "FLOAT",
-      "rangeLo": 0,
-      "rangeHi": 400,
-      "typicalValue": 365,
-      "scanRateMs": 5000,
-      "stepFlag": false,
-      "instrumentTag": "ns=2;s=CDU.T101.TI-01",
-      "area": "CDU",
-      "equipment": "T-101",
-      "instrumentType": "TI",
-      "alarmHH": 395,
-      "alarmH": 380,
-      "alarmL": 340,
-      "alarmLL": 320,
-      "deadbandValue": 0.5,
-      "deadbandType": "ABSOLUTE"
-    },
-    "PI-101.PV": {
-      "description": "Presión tope columna T-101",
-      "engUnits": "kPa",
-      "dataType": "FLOAT",
-      "rangeLo": 0,
-      "rangeHi": 300,
-      "typicalValue": 152,
-      "scanRateMs": 5000,
-      "stepFlag": false,
-      "instrumentTag": "ns=2;s=CDU.T101.PI-01",
-      "area": "CDU",
-      "equipment": "T-101",
-      "instrumentType": "PI",
-      "alarmHH": 200,
-      "alarmH": 180,
-      "alarmL": 100,
-      "alarmLL": 80,
-      "deadbandValue": 0.3,
-      "deadbandType": "ABSOLUTE"
-    },
-    "XV-101.PV": {
-      "description": "Válvula bloqueo alimentación T-101",
-      "engUnits": "",
-      "dataType": "DIGITAL",
-      "rangeLo": 0,
-      "rangeHi": 1,
-      "typicalValue": 1,
-      "scanRateMs": 1000,
-      "stepFlag": true,
-      "instrumentTag": "ns=2;s=CDU.T101.XV-01",
-      "area": "CDU",
-      "equipment": "T-101",
-      "instrumentType": "XV",
-      "alarmHH": null,
-      "alarmH": null,
-      "alarmL": null,
-      "alarmLL": null,
-      "deadbandValue": 0,
-      "deadbandType": "ABSOLUTE",
-      "digitalStates": {
-        "0": "Cerrada",
-        "1": "Abierta",
-        "2": "En tránsito",
-        "3": "Falla"
-      }
-    }
-  }
+  "description": "Temperatura plato 1 columna T-101",
+  "engUnits": "°C",
+  "dataType": "FLOAT",
+  "rangeLo": 0,
+  "rangeHi": 400,
+  "typicalValue": 365,
+  "scanRateMs": 5000,
+  "stepFlag": false,
+  "instrumentTag": "ns=2;s=CDU.T101.TI-01",
+  "area": "CDU",
+  "equipment": "T-101",
+  "instrumentType": "TI",
+  "alarmHH": 395,
+  "alarmH": 380,
+  "alarmL": 340,
+  "alarmLL": 320,
+  "deadbandValue": 0.5,
+  "deadbandType": "ABSOLUTE"
 }
 ```
 
-### Campos obligatorios por tag
+### Ejemplo — Tag digital (válvula)
+
+```json
+{
+  "description": "Válvula bloqueo alimentación T-101",
+  "engUnits": "",
+  "dataType": "DIGITAL",
+  "rangeLo": 0,
+  "rangeHi": 1,
+  "typicalValue": 1,
+  "scanRateMs": 1000,
+  "stepFlag": true,
+  "instrumentTag": "ns=2;s=CDU.T101.XV-01",
+  "area": "CDU",
+  "equipment": "T-101",
+  "instrumentType": "XV",
+  "alarmHH": null,
+  "alarmH": null,
+  "alarmL": null,
+  "alarmLL": null,
+  "deadbandValue": 0,
+  "deadbandType": "ABSOLUTE",
+  "digitalStates": "{\"0\":\"Cerrada\",\"1\":\"Abierta\",\"2\":\"En tránsito\",\"3\":\"Falla\"}"
+}
+```
+
+### Campos obligatorios
 
 | Campo | Tipo | Descripción | Ejemplo |
 |-------|------|-------------|---------|
 | `description` | string | Qué mide este tag | `"Temperatura plato 1 columna T-101"` |
-| `engUnits` | string | Unidad de ingeniería (vacío para discretos) | `"°C"`, `"kPa"`, `"m³/h"`, `""` |
+| `engUnits` | string | Unidad de ingeniería (vacío para discretos) | `"°C"`, `"kPa"`, `""` |
 | `dataType` | string | Tipo de dato | `"FLOAT"`, `"DIGITAL"`, `"INTEGER"`, `"STRING"` |
 | `rangeLo` | number | Mínimo del rango | `0` |
 | `rangeHi` | number | Máximo del rango | `400` |
@@ -167,21 +157,7 @@ Tu software tiene toda la información del tag en el DCS. La parte estática la 
 
 | Campo | Tipo | Descripción | Ejemplo |
 |-------|------|-------------|---------|
-| `digitalStates` | object | Mapeo número → texto | `{"0": "Cerrada", "1": "Abierta"}` |
-
-### Atributos adicionales del colector (mismo tópico, se pueden enviar juntos o aparte)
-
-```json
-{
-  "collectorStatus": "running",
-  "dcsConnectionStatus": "connected",
-  "tagsConfigured": 45,
-  "tagsActive": 43,
-  "tagsInError": 2,
-  "collectorVersion": "2.1.0",
-  "hostName": "collector-server-01"
-}
-```
+| `digitalStates` | string (JSON) | Mapeo número → texto (serializado) | `"{\"0\":\"Cerrada\",\"1\":\"Abierta\"}"` |
 
 ---
 
@@ -193,24 +169,14 @@ Tu software tiene toda la información del tag en el DCS. La parte estática la 
 
 ### Formato del payload
 
-Cada tag envía **dos** telemetry keys: el valor y su quality.
+Cada Device-tag envía solo **dos** telemetry keys: `PV` y `Q`.
 
 ```json
 {
   "ts": 1706745600000,
   "values": {
-    "TI-101-01.PV": 365.2,
-    "TI-101-01.Q": 192,
-    "TI-101-02.PV": 342.8,
-    "TI-101-02.Q": 192,
-    "PI-101.PV": 152.3,
-    "PI-101.Q": 192,
-    "FIC-101.PV": 680.5,
-    "FIC-101.Q": 192,
-    "LI-101.PV": 62.1,
-    "LI-101.Q": 192,
-    "XV-101.PV": 1,
-    "XV-101.Q": 192
+    "PV": 365.2,
+    "Q": 192
   }
 }
 ```
@@ -220,11 +186,10 @@ Cada tag envía **dos** telemetry keys: el valor y su quality.
 | Regla | Detalle |
 |-------|---------|
 | **`ts`** | Timestamp en milisegundos Unix UTC. Obligatorio. Es el timestamp del DCS, no del colector. |
-| **`TAGNAME.PV`** | El valor del tag. `number` para analógicos y discretos. `null` si el dato no es válido. |
-| **`TAGNAME.Q`** | Quality del tag. Siempre `number` (código OPC-UA). |
+| **`PV`** | El valor del tag. `number` para analógicos y discretos. `null` si el dato no es válido. |
+| **`Q`** | Quality del tag. Siempre `number` (código OPC-UA). |
 | Valores numéricos | Siempre `number` JSON, nunca `string`. Correcto: `365.2`. Incorrecto: `"365.2"` |
-| Valor inválido | Enviar `null`. No enviar `"BAD"`, `"N/A"`, `-999`, `"ERROR"` |
-| Nombres de tags | Mayúsculas, sin espacios. Solo `A-Z`, `0-9`, `-`, `.` |
+| Valor inválido | Enviar `PV: null`. No enviar `"BAD"`, `"N/A"`, `-999`, `"ERROR"` |
 
 ### Códigos de Quality
 
@@ -239,7 +204,7 @@ El quality es el número que viene del OPC o DCS. Enviarlo tal cual:
 | `28` | Bad - Out of Range |
 | `32` | Bad - Not Connected |
 
-Del lado de ThingsBoard se convertirá a texto legible mediante un Calculated Field. Tu software solo envía el número.
+Del lado de ThingsBoard se convertirá a texto legible mediante un Calculated Field en el Device Profile. Tu software solo envía el número.
 
 ### Ejemplo con dato malo
 
@@ -247,15 +212,13 @@ Del lado de ThingsBoard se convertirá a texto legible mediante un Calculated Fi
 {
   "ts": 1706745600000,
   "values": {
-    "TI-101-01.PV": 365.2,
-    "TI-101-01.Q": 192,
-    "TI-101-02.PV": null,
-    "TI-101-02.Q": 0
+    "PV": null,
+    "Q": 0
   }
 }
 ```
 
-Tag `TI-101-02` tiene quality `0` (Bad), así que el valor se envía como `null`.
+Quality `0` (Bad), así que PV se envía como `null`.
 
 ---
 
@@ -269,50 +232,92 @@ Si tu software pierde conexión MQTT y acumula datos en buffer, al reconectar pu
 [
   {
     "ts": 1706745600000,
-    "values": {
-      "TI-101-01.PV": 365.2,
-      "TI-101-01.Q": 192
-    }
+    "values": { "PV": 365.2, "Q": 192 }
   },
   {
     "ts": 1706745605000,
-    "values": {
-      "TI-101-01.PV": 365.4,
-      "TI-101-01.Q": 192
-    }
+    "values": { "PV": 365.4, "Q": 192 }
   },
   {
     "ts": 1706745610000,
-    "values": {
-      "TI-101-01.PV": 365.1,
-      "TI-101-01.Q": 192
-    }
+    "values": { "PV": 365.1, "Q": 192 }
   }
 ]
 ```
 
 ThingsBoard almacena cada uno con su timestamp original.
 
+### Envío batch via Gateway
+
+Si se usa un Gateway Device para publicar en nombre de múltiples tags:
+
+**Tópico**: `v1/gateway/telemetry`
+
+```json
+{
+  "TI-101-01": [
+    { "ts": 1706745600000, "values": { "PV": 365.2, "Q": 192 } },
+    { "ts": 1706745605000, "values": { "PV": 365.4, "Q": 192 } }
+  ],
+  "PI-101": [
+    { "ts": 1706745600000, "values": { "PV": 152.3, "Q": 192 } }
+  ]
+}
+```
+
 ---
 
 ## 7. Sobre los Devices y la Jerarquía
 
-**Los Devices NO se relacionan entre sí.** No hay árbol de Devices.
+**Los Devices (tags) NO se relacionan entre sí.** No hay árbol de Devices.
 
-La jerarquía de planta se hace con Assets (que crea el equipo de ThingsBoard). Los Assets se conectan a los Devices mediante relaciones "Contains":
+La jerarquía de planta se hace con Assets. Los Assets se conectan a los Devices-tag mediante relaciones `Contains`:
 
 ```
-Asset "CDU" ──Contains──→ Asset "T-101" ──Contains──→ Device "T101-INST"
+Asset "CDU" ──Contains──→ Asset "T-101" ──Contains──→ Device "TI-101-01"
+                                         ──Contains──→ Device "PI-101"
+                                         ──Contains──→ Device "XV-101"
 ```
 
-**Tu software no necesita saber nada de los Assets ni de las relaciones.** Solo se conecta al Device con su Access Token y envía datos.
+Cada nivel del árbol usa un Asset Profile distinto:
 
-Lo único que necesitas del equipo de ThingsBoard por cada Device:
+| Nivel | Asset Profile | Ejemplo |
+|-------|--------------|---------|
+| Sitio | `Sitio` | "Refinería Norte" |
+| Área | `AreaProceso` | "CDU", "FCC" |
+| Equipo | `Equipo` | "T-101", "F-201" |
 
-| Dato | Ejemplo | Para qué |
-|------|---------|----------|
-| Nombre del Device | `T101-INST` | Para que sepas qué tags van a cada Device |
-| Access Token | `ABC123xyz789` | Para conectar vía MQTT (va como username) |
+Los Devices-tag usan un solo Device Profile:
+
+| Device Profile | Para qué |
+|---------------|----------|
+| `Tag` | Todos los tags. Contiene Alarm Rules genéricas y Calculated Fields |
+
+### Alarm Rules en el Device Profile "Tag"
+
+Como todos los tags comparten el mismo Device Profile, las reglas de alarma se definen una vez y aplican a todos:
+
+```
+Alarm: "HIGH_HIGH"
+  Create: PV > attribute.alarmHH  (dynamic threshold)
+  Clear:  PV < attribute.alarmHH - attribute.deadbandValue
+  Severity: CRITICAL
+  Propagate: YES
+
+Alarm: "HIGH"
+  Create: PV > attribute.alarmH
+  Severity: MAJOR
+
+Alarm: "LOW"
+  Create: PV < attribute.alarmL
+  Severity: MAJOR
+
+Alarm: "LOW_LOW"
+  Create: PV < attribute.alarmLL
+  Severity: CRITICAL
+```
+
+Los umbrales vienen de los atributos del propio Device (`alarmHH`, `alarmH`, etc.), así que cada tag tiene sus propios límites.
 
 ---
 
@@ -330,7 +335,7 @@ O cuando pasó el tiempo máximo sin enviar (heartbeat):
 tiempo_desde_ultimo_envio >= heartbeatMaxMs  (recomendado: 300000 = 5 min)
 ```
 
-Esto reduce tráfico ~70%. El `deadbandValue` y `deadbandType` están en los datos estáticos de cada tag.
+Esto reduce tráfico ~70%. El `deadbandValue` y `deadbandType` están en los atributos del Device.
 
 Si tu software NO implementa dead-band, simplemente envía todos los valores cada ciclo de escaneo. ThingsBoard los almacena todos.
 
@@ -340,122 +345,121 @@ Si tu software NO implementa dead-band, simplemente envía todos los valores cad
 
 | Paso | Qué | Tópico MQTT | Cuándo |
 |------|-----|-------------|--------|
-| 1 | Conectar | - | Al iniciar |
-| 2 | Enviar datos estáticos de todos los tags | `v1/devices/me/attributes` | Al conectar y cuando cambien |
-| 3 | Enviar estado del colector | `v1/devices/me/attributes` | Al conectar y cuando cambie |
-| 4 | Enviar valores + quality de los tags | `v1/devices/me/telemetry` | Cada ciclo de escaneo |
-| 5 | Si se desconectó, enviar batch acumulado | `v1/devices/me/telemetry` | Al reconectar |
+| 1 | Conectar al Device del tag | - | Al iniciar |
+| 2 | Enviar metadatos estáticos del tag | `v1/devices/me/attributes` | Al conectar y cuando cambien |
+| 3 | Enviar valor + quality | `v1/devices/me/telemetry` | Cada ciclo de escaneo |
+| 4 | Si se desconectó, enviar batch acumulado | `v1/devices/me/telemetry` | Al reconectar |
 
-Eso es todo. No necesitas crear Assets, ni relaciones, ni configurar alarmas, ni nada más en ThingsBoard.
+Eso es todo por tag. Si usas un Gateway, la conexión es una sola y publicas datos para todos los tags.
 
 ---
 
-## 10. Ejemplo Completo: Una Sesión
+## 10. Ejemplo Completo: Una Sesión (Device directo)
 
 ```
 ── CONECTAR ──────────────────────────────────────────────
 MQTT CONNECT
   Broker: mqtt://192.168.10.50:1883
-  ClientID: T101-INST
-  Username: ABC123xyz789
+  ClientID: TI-101-01
+  Username: <access_token_del_device_TI-101-01>
   Password: (vacío)
 
-── ENVIAR DATOS ESTÁTICOS ────────────────────────────────
+── ENVIAR METADATOS ESTÁTICOS ─────────────────────────────
 PUBLISH v1/devices/me/attributes
 {
-  "collectorStatus": "running",
-  "dcsConnectionStatus": "connected",
-  "tagsConfigured": 3,
-  "tagsActive": 3,
-  "tagConfig": {
-    "TI-101-01.PV": {
-      "description": "Temperatura plato 1 columna T-101",
-      "engUnits": "°C",
-      "dataType": "FLOAT",
-      "rangeLo": 0,
-      "rangeHi": 400,
-      "typicalValue": 365,
-      "scanRateMs": 5000,
-      "stepFlag": false,
-      "instrumentTag": "ns=2;s=CDU.T101.TI-01",
-      "area": "CDU",
-      "equipment": "T-101",
-      "instrumentType": "TI",
-      "alarmHH": 395,
-      "alarmH": 380,
-      "alarmL": 340,
-      "alarmLL": 320,
-      "deadbandValue": 0.5,
-      "deadbandType": "ABSOLUTE"
-    },
-    "PI-101.PV": {
-      "description": "Presión tope columna T-101",
-      "engUnits": "kPa",
-      "dataType": "FLOAT",
-      "rangeLo": 0,
-      "rangeHi": 300,
-      "typicalValue": 152,
-      "scanRateMs": 5000,
-      "stepFlag": false,
-      "instrumentTag": "ns=2;s=CDU.T101.PI-01",
-      "area": "CDU",
-      "equipment": "T-101",
-      "instrumentType": "PI",
-      "alarmHH": 200,
-      "alarmH": 180,
-      "alarmL": 100,
-      "alarmLL": 80,
-      "deadbandValue": 0.3,
-      "deadbandType": "ABSOLUTE"
-    },
-    "XV-101.PV": {
-      "description": "Válvula bloqueo alimentación",
-      "engUnits": "",
-      "dataType": "DIGITAL",
-      "rangeLo": 0,
-      "rangeHi": 1,
-      "typicalValue": 1,
-      "scanRateMs": 1000,
-      "stepFlag": true,
-      "instrumentTag": "ns=2;s=CDU.T101.XV-01",
-      "area": "CDU",
-      "equipment": "T-101",
-      "instrumentType": "XV",
-      "alarmHH": null,
-      "alarmH": null,
-      "alarmL": null,
-      "alarmLL": null,
-      "deadbandValue": 0,
-      "deadbandType": "ABSOLUTE",
-      "digitalStates": {"0": "Cerrada", "1": "Abierta"}
-    }
-  }
+  "description": "Temperatura plato 1 columna T-101",
+  "engUnits": "°C",
+  "dataType": "FLOAT",
+  "rangeLo": 0,
+  "rangeHi": 400,
+  "typicalValue": 365,
+  "scanRateMs": 5000,
+  "stepFlag": false,
+  "instrumentTag": "ns=2;s=CDU.T101.TI-01",
+  "area": "CDU",
+  "equipment": "T-101",
+  "instrumentType": "TI",
+  "alarmHH": 395,
+  "alarmH": 380,
+  "alarmL": 340,
+  "alarmLL": 320,
+  "deadbandValue": 0.5,
+  "deadbandType": "ABSOLUTE"
 }
 
-── ENVIAR TELEMETRÍA (cada 5 segundos) ───────────────────
+── ENVIAR TELEMETRÍA (cada 5 segundos) ────────────────────
 PUBLISH v1/devices/me/telemetry
 {
   "ts": 1706745600000,
   "values": {
-    "TI-101-01.PV": 365.2,
-    "TI-101-01.Q": 192,
-    "PI-101.PV": 152.3,
-    "PI-101.Q": 192,
-    "XV-101.PV": 1,
-    "XV-101.Q": 192
+    "PV": 365.2,
+    "Q": 192
   }
 }
 
-── 5 SEGUNDOS DESPUÉS ────────────────────────────────────
+── 5 SEGUNDOS DESPUÉS ─────────────────────────────────────
 PUBLISH v1/devices/me/telemetry
 {
   "ts": 1706745605000,
   "values": {
-    "TI-101-01.PV": 365.4,
-    "TI-101-01.Q": 192,
-    "PI-101.PV": 152.1,
-    "PI-101.Q": 192
+    "PV": 365.4,
+    "Q": 192
   }
 }
-(XV-101.PV no se envió porque no cambió)
+```
+
+---
+
+## 11. Ejemplo: Sesión con Gateway (múltiples tags)
+
+Si el software de recolección usa un Gateway Device para manejar todos los tags desde una sola conexión MQTT:
+
+```
+── CONECTAR ──────────────────────────────────────────────
+MQTT CONNECT
+  Broker: mqtt://192.168.10.50:1883
+  ClientID: COLLECTOR-01
+  Username: <access_token_del_gateway>
+  Password: (vacío)
+
+── ENVIAR ATRIBUTOS DE MÚLTIPLES TAGS ─────────────────────
+PUBLISH v1/gateway/attributes
+{
+  "TI-101-01": {
+    "description": "Temperatura plato 1 columna T-101",
+    "engUnits": "°C",
+    "dataType": "FLOAT",
+    "rangeLo": 0,
+    "rangeHi": 400,
+    "alarmHH": 395,
+    "alarmH": 380,
+    "alarmL": 340,
+    "alarmLL": 320
+  },
+  "PI-101": {
+    "description": "Presión tope columna T-101",
+    "engUnits": "kPa",
+    "dataType": "FLOAT",
+    "rangeLo": 0,
+    "rangeHi": 300,
+    "alarmHH": 200,
+    "alarmH": 180,
+    "alarmL": 100,
+    "alarmLL": 80
+  }
+}
+
+── ENVIAR TELEMETRÍA DE MÚLTIPLES TAGS ────────────────────
+PUBLISH v1/gateway/telemetry
+{
+  "TI-101-01": [
+    { "ts": 1706745600000, "values": { "PV": 365.2, "Q": 192 } }
+  ],
+  "PI-101": [
+    { "ts": 1706745600000, "values": { "PV": 152.3, "Q": 192 } }
+  ],
+  "XV-101": [
+    { "ts": 1706745600000, "values": { "PV": 1, "Q": 192 } }
+  ]
+}
 ```

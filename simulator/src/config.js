@@ -44,8 +44,8 @@ export const QUALITY = {
 };
 
 // ─── Plant model definition ──────────────────────────────────────────────
-// Hierarchy: Site → Area → Equipment → Device (Instruments)
-// Each device holds 5-25 tags depending on instrument complexity
+// Hierarchy: Site → Area → Equipment → Device-Tag (1 Device = 1 tag)
+// Each instrument group expands to N individual Device-tags
 
 export const PLANT_MODEL = {
   name: 'PlantaSur',
@@ -59,25 +59,25 @@ export const PLANT_MODEL = {
       equipment: [
         { name: 'Torre-DA-101', label: 'Torre de Destilación Principal', type: 'Equipo',
           instruments: [
-            { name: 'DA101-TempCtrl', label: 'Controladores de Temperatura Torre', tagPrefix: 'DA101.T', count: 15, profile: 'temperature_tower' },
-            { name: 'DA101-PresCtrl', label: 'Controladores de Presión Torre', tagPrefix: 'DA101.P', count: 8, profile: 'pressure_tower' },
-            { name: 'DA101-FlowCtrl', label: 'Medidores de Flujo Torre', tagPrefix: 'DA101.F', count: 10, profile: 'flow' },
-            { name: 'DA101-LevelCtrl', label: 'Indicadores de Nivel Torre', tagPrefix: 'DA101.L', count: 6, profile: 'level' },
+            { tagPrefix: 'DA101.T', count: 20, profile: 'temperature_tower', label: 'Temperatura Torre' },
+            { tagPrefix: 'DA101.P', count: 12, profile: 'pressure_tower', label: 'Presión Torre' },
+            { tagPrefix: 'DA101.F', count: 14, profile: 'flow', label: 'Flujo Torre' },
+            { tagPrefix: 'DA101.L', count: 10, profile: 'level', label: 'Nivel Torre' },
           ]
         },
         { name: 'Horno-H-101', label: 'Horno de Precalentamiento', type: 'Equipo',
           instruments: [
-            { name: 'H101-TempCtrl', label: 'Temperaturas Horno', tagPrefix: 'H101.T', count: 12, profile: 'temperature_furnace' },
-            { name: 'H101-PresCtrl', label: 'Presiones Horno', tagPrefix: 'H101.P', count: 4, profile: 'pressure_low' },
-            { name: 'H101-FuelCtrl', label: 'Control de Combustible', tagPrefix: 'H101.FU', count: 6, profile: 'flow' },
-            { name: 'H101-Analyzers', label: 'Analizadores de Gases', tagPrefix: 'H101.A', count: 4, profile: 'analyzer' },
+            { tagPrefix: 'H101.T', count: 12, profile: 'temperature_furnace', label: 'Temperatura Horno' },
+            { tagPrefix: 'H101.P', count: 4, profile: 'pressure_low', label: 'Presión Horno' },
+            { tagPrefix: 'H101.FU', count: 6, profile: 'flow', label: 'Combustible Horno' },
+            { tagPrefix: 'H101.A', count: 4, profile: 'analyzer', label: 'Analizador Gases Horno' },
           ]
         },
         { name: 'Intercamb-E-101', label: 'Tren de Intercambiadores', type: 'Equipo',
           instruments: [
-            { name: 'E101-TempCtrl', label: 'Temperaturas Intercambiadores', tagPrefix: 'E101.T', count: 8, profile: 'temperature_exchanger' },
-            { name: 'E101-FlowCtrl', label: 'Flujos Intercambiadores', tagPrefix: 'E101.F', count: 6, profile: 'flow' },
-            { name: 'E101-DiffPress', label: 'Presiones Diferenciales', tagPrefix: 'E101.DP', count: 4, profile: 'pressure_diff' },
+            { tagPrefix: 'E101.T', count: 8, profile: 'temperature_exchanger', label: 'Temperatura Intercambiador' },
+            { tagPrefix: 'E101.F', count: 6, profile: 'flow', label: 'Flujo Intercambiador' },
+            { tagPrefix: 'E101.DP', count: 4, profile: 'pressure_diff', label: 'Presión Diferencial' },
           ]
         },
       ]
@@ -89,25 +89,25 @@ export const PLANT_MODEL = {
       equipment: [
         { name: 'Reactor-R-201', label: 'Reactor de Hidrotratamiento', type: 'Equipo',
           instruments: [
-            { name: 'R201-TempCtrl', label: 'Temperaturas Reactor', tagPrefix: 'R201.T', count: 20, profile: 'temperature_reactor' },
-            { name: 'R201-PresCtrl', label: 'Presiones Reactor', tagPrefix: 'R201.P', count: 8, profile: 'pressure_high' },
-            { name: 'R201-FlowCtrl', label: 'Flujos Reactor', tagPrefix: 'R201.F', count: 6, profile: 'flow' },
-            { name: 'R201-Analyzers', label: 'Analizadores Reactor', tagPrefix: 'R201.A', count: 6, profile: 'analyzer' },
+            { tagPrefix: 'R201.T', count: 24, profile: 'temperature_reactor', label: 'Temperatura Reactor' },
+            { tagPrefix: 'R201.P', count: 12, profile: 'pressure_high', label: 'Presión Reactor' },
+            { tagPrefix: 'R201.F', count: 10, profile: 'flow', label: 'Flujo Reactor' },
+            { tagPrefix: 'R201.A', count: 8, profile: 'analyzer', label: 'Analizador Reactor' },
           ]
         },
         { name: 'Separador-V-201', label: 'Separador de Alta Presión', type: 'Equipo',
           instruments: [
-            { name: 'V201-LevelCtrl', label: 'Niveles Separador', tagPrefix: 'V201.L', count: 4, profile: 'level' },
-            { name: 'V201-PresCtrl', label: 'Presiones Separador', tagPrefix: 'V201.P', count: 4, profile: 'pressure_high' },
-            { name: 'V201-TempCtrl', label: 'Temperaturas Separador', tagPrefix: 'V201.T', count: 4, profile: 'temperature_vessel' },
+            { tagPrefix: 'V201.L', count: 4, profile: 'level', label: 'Nivel Separador' },
+            { tagPrefix: 'V201.P', count: 4, profile: 'pressure_high', label: 'Presión Separador' },
+            { tagPrefix: 'V201.T', count: 4, profile: 'temperature_vessel', label: 'Temperatura Separador' },
           ]
         },
         { name: 'Compresor-K-201', label: 'Compresor de Hidrógeno', type: 'Equipo',
           instruments: [
-            { name: 'K201-VibCtrl', label: 'Vibración Compresor', tagPrefix: 'K201.VIB', count: 6, profile: 'vibration' },
-            { name: 'K201-TempCtrl', label: 'Temperaturas Compresor', tagPrefix: 'K201.T', count: 8, profile: 'temperature_motor' },
-            { name: 'K201-PresCtrl', label: 'Presiones Compresor', tagPrefix: 'K201.P', count: 4, profile: 'pressure_high' },
-            { name: 'K201-Valves', label: 'Válvulas Compresor', tagPrefix: 'K201.XV', count: 6, profile: 'digital_valve' },
+            { tagPrefix: 'K201.VIB', count: 6, profile: 'vibration', label: 'Vibración Compresor' },
+            { tagPrefix: 'K201.T', count: 8, profile: 'temperature_motor', label: 'Temperatura Compresor' },
+            { tagPrefix: 'K201.P', count: 4, profile: 'pressure_high', label: 'Presión Compresor' },
+            { tagPrefix: 'K201.XV', count: 6, profile: 'digital_valve', label: 'Válvula Compresor' },
           ]
         },
       ]
@@ -119,28 +119,28 @@ export const PLANT_MODEL = {
       equipment: [
         { name: 'Tanque-TK-301', label: 'Tanque de Crudo', type: 'Equipo',
           instruments: [
-            { name: 'TK301-LevelCtrl', label: 'Niveles Tanque Crudo', tagPrefix: 'TK301.L', count: 4, profile: 'level_tank' },
-            { name: 'TK301-TempCtrl', label: 'Temperaturas Tanque Crudo', tagPrefix: 'TK301.T', count: 6, profile: 'temperature_tank' },
+            { tagPrefix: 'TK301.L', count: 5, profile: 'level_tank', label: 'Nivel Tanque Crudo' },
+            { tagPrefix: 'TK301.T', count: 7, profile: 'temperature_tank', label: 'Temperatura Tanque Crudo' },
           ]
         },
         { name: 'Tanque-TK-302', label: 'Tanque de Nafta', type: 'Equipo',
           instruments: [
-            { name: 'TK302-LevelCtrl', label: 'Niveles Tanque Nafta', tagPrefix: 'TK302.L', count: 4, profile: 'level_tank' },
-            { name: 'TK302-TempCtrl', label: 'Temperaturas Tanque Nafta', tagPrefix: 'TK302.T', count: 4, profile: 'temperature_tank' },
+            { tagPrefix: 'TK302.L', count: 4, profile: 'level_tank', label: 'Nivel Tanque Nafta' },
+            { tagPrefix: 'TK302.T', count: 4, profile: 'temperature_tank', label: 'Temperatura Tanque Nafta' },
           ]
         },
         { name: 'Tanque-TK-303', label: 'Tanque de Diesel', type: 'Equipo',
           instruments: [
-            { name: 'TK303-LevelCtrl', label: 'Niveles Tanque Diesel', tagPrefix: 'TK303.L', count: 4, profile: 'level_tank' },
-            { name: 'TK303-TempCtrl', label: 'Temperaturas Tanque Diesel', tagPrefix: 'TK303.T', count: 4, profile: 'temperature_tank' },
+            { tagPrefix: 'TK303.L', count: 4, profile: 'level_tank', label: 'Nivel Tanque Diesel' },
+            { tagPrefix: 'TK303.T', count: 4, profile: 'temperature_tank', label: 'Temperatura Tanque Diesel' },
           ]
         },
         { name: 'Bombas-P-301', label: 'Estación de Bombeo', type: 'Equipo',
           instruments: [
-            { name: 'P301-FlowCtrl', label: 'Flujos Bombas', tagPrefix: 'P301.F', count: 8, profile: 'flow' },
-            { name: 'P301-PresCtrl', label: 'Presiones Bombas', tagPrefix: 'P301.P', count: 8, profile: 'pressure_low' },
-            { name: 'P301-MotorCtrl', label: 'Motores Bombas', tagPrefix: 'P301.M', count: 8, profile: 'digital_motor' },
-            { name: 'P301-VibCtrl', label: 'Vibración Bombas', tagPrefix: 'P301.VIB', count: 6, profile: 'vibration' },
+            { tagPrefix: 'P301.F', count: 8, profile: 'flow', label: 'Flujo Bomba' },
+            { tagPrefix: 'P301.P', count: 8, profile: 'pressure_low', label: 'Presión Bomba' },
+            { tagPrefix: 'P301.M', count: 8, profile: 'digital_motor', label: 'Motor Bomba' },
+            { tagPrefix: 'P301.VIB', count: 6, profile: 'vibration', label: 'Vibración Bomba' },
           ]
         },
       ]
@@ -152,24 +152,80 @@ export const PLANT_MODEL = {
       equipment: [
         { name: 'Caldera-B-401', label: 'Caldera de Vapor', type: 'Equipo',
           instruments: [
-            { name: 'B401-TempCtrl', label: 'Temperaturas Caldera', tagPrefix: 'B401.T', count: 10, profile: 'temperature_boiler' },
-            { name: 'B401-PresCtrl', label: 'Presiones Caldera', tagPrefix: 'B401.P', count: 6, profile: 'pressure_steam' },
-            { name: 'B401-FlowCtrl', label: 'Flujos Caldera', tagPrefix: 'B401.F', count: 6, profile: 'flow' },
-            { name: 'B401-LevelCtrl', label: 'Niveles Caldera', tagPrefix: 'B401.L', count: 4, profile: 'level' },
-            { name: 'B401-Analyzers', label: 'Analizadores Caldera', tagPrefix: 'B401.A', count: 4, profile: 'analyzer' },
+            { tagPrefix: 'B401.T', count: 10, profile: 'temperature_boiler', label: 'Temperatura Caldera' },
+            { tagPrefix: 'B401.P', count: 6, profile: 'pressure_steam', label: 'Presión Caldera' },
+            { tagPrefix: 'B401.F', count: 6, profile: 'flow', label: 'Flujo Caldera' },
+            { tagPrefix: 'B401.L', count: 4, profile: 'level', label: 'Nivel Caldera' },
+            { tagPrefix: 'B401.A', count: 4, profile: 'analyzer', label: 'Analizador Caldera' },
           ]
         },
         { name: 'TorreEnfr-CT-401', label: 'Torre de Enfriamiento', type: 'Equipo',
           instruments: [
-            { name: 'CT401-TempCtrl', label: 'Temperaturas Torre Enfriamiento', tagPrefix: 'CT401.T', count: 8, profile: 'temperature_cooling' },
-            { name: 'CT401-FlowCtrl', label: 'Flujos Torre Enfriamiento', tagPrefix: 'CT401.F', count: 4, profile: 'flow' },
-            { name: 'CT401-Analyzers', label: 'Calidad Agua', tagPrefix: 'CT401.AQ', count: 6, profile: 'water_quality' },
+            { tagPrefix: 'CT401.T', count: 8, profile: 'temperature_cooling', label: 'Temperatura Torre Enfr.' },
+            { tagPrefix: 'CT401.F', count: 4, profile: 'flow', label: 'Flujo Torre Enfr.' },
+            { tagPrefix: 'CT401.AQ', count: 6, profile: 'water_quality', label: 'Calidad Agua' },
           ]
         },
         { name: 'Electrica-SW-401', label: 'Subestación Eléctrica', type: 'Equipo',
           instruments: [
-            { name: 'SW401-PowerCtrl', label: 'Medidores Eléctricos', tagPrefix: 'SW401.E', count: 12, profile: 'electrical' },
-            { name: 'SW401-Breakers', label: 'Interruptores', tagPrefix: 'SW401.CB', count: 8, profile: 'digital_breaker' },
+            { tagPrefix: 'SW401.E', count: 12, profile: 'electrical', label: 'Medidor Eléctrico' },
+            { tagPrefix: 'SW401.CB', count: 8, profile: 'digital_breaker', label: 'Interruptor' },
+          ]
+        },
+        { name: 'AireInstr-IA-401', label: 'Sistema de Aire de Instrumentos', type: 'Equipo',
+          instruments: [
+            { tagPrefix: 'IA401.P', count: 6, profile: 'pressure_low', label: 'Presión Aire Inst.' },
+            { tagPrefix: 'IA401.T', count: 4, profile: 'temperature_cooling', label: 'Temperatura Secador' },
+            { tagPrefix: 'IA401.F', count: 4, profile: 'flow', label: 'Flujo Compresor Aire' },
+            { tagPrefix: 'IA401.M', count: 4, profile: 'digital_motor', label: 'Motor Compresor Aire' },
+          ]
+        },
+      ]
+    },
+    {
+      name: 'Cracking',
+      label: 'Unidad de Craqueo Catalítico (FCC)',
+      type: 'AreaProceso',
+      equipment: [
+        { name: 'Riser-RX-501', label: 'Riser/Reactor FCC', type: 'Equipo',
+          instruments: [
+            { tagPrefix: 'RX501.T', count: 18, profile: 'temperature_reactor', label: 'Temperatura Riser' },
+            { tagPrefix: 'RX501.P', count: 8, profile: 'pressure_tower', label: 'Presión Riser' },
+            { tagPrefix: 'RX501.F', count: 8, profile: 'flow', label: 'Flujo Riser' },
+            { tagPrefix: 'RX501.A', count: 6, profile: 'analyzer', label: 'Analizador Riser' },
+            { tagPrefix: 'RX501.XV', count: 8, profile: 'digital_valve', label: 'Válvula Catalizador' },
+          ]
+        },
+        { name: 'Regenerador-RG-501', label: 'Regenerador de Catalizador', type: 'Equipo',
+          instruments: [
+            { tagPrefix: 'RG501.T', count: 16, profile: 'temperature_furnace', label: 'Temperatura Regenerador' },
+            { tagPrefix: 'RG501.P', count: 6, profile: 'pressure_tower', label: 'Presión Regenerador' },
+            { tagPrefix: 'RG501.F', count: 6, profile: 'flow', label: 'Flujo Aire Regenerador' },
+            { tagPrefix: 'RG501.A', count: 4, profile: 'analyzer', label: 'Analizador CO/O2' },
+          ]
+        },
+        { name: 'Fraccionadora-T-501', label: 'Torre Fraccionadora FCC', type: 'Equipo',
+          instruments: [
+            { tagPrefix: 'T501.T', count: 14, profile: 'temperature_tower', label: 'Temperatura Fraccionadora' },
+            { tagPrefix: 'T501.P', count: 6, profile: 'pressure_tower', label: 'Presión Fraccionadora' },
+            { tagPrefix: 'T501.F', count: 8, profile: 'flow', label: 'Flujo Fraccionadora' },
+            { tagPrefix: 'T501.L', count: 6, profile: 'level', label: 'Nivel Fraccionadora' },
+          ]
+        },
+        { name: 'GasPlant-GP-501', label: 'Planta de Gas FCC', type: 'Equipo',
+          instruments: [
+            { tagPrefix: 'GP501.T', count: 10, profile: 'temperature_vessel', label: 'Temperatura Planta Gas' },
+            { tagPrefix: 'GP501.P', count: 8, profile: 'pressure_high', label: 'Presión Planta Gas' },
+            { tagPrefix: 'GP501.F', count: 6, profile: 'flow', label: 'Flujo Planta Gas' },
+            { tagPrefix: 'GP501.L', count: 4, profile: 'level', label: 'Nivel Planta Gas' },
+            { tagPrefix: 'GP501.A', count: 4, profile: 'analyzer', label: 'Analizador Gas' },
+          ]
+        },
+        { name: 'Sopladores-BL-501', label: 'Sopladores de Aire', type: 'Equipo',
+          instruments: [
+            { tagPrefix: 'BL501.VIB', count: 8, profile: 'vibration', label: 'Vibración Soplador' },
+            { tagPrefix: 'BL501.T', count: 8, profile: 'temperature_motor', label: 'Temperatura Soplador' },
+            { tagPrefix: 'BL501.M', count: 4, profile: 'digital_motor', label: 'Motor Soplador' },
           ]
         },
       ]
@@ -206,3 +262,63 @@ export const TAG_PROFILES = {
   digital_motor:       { dataType: 'integer', engUnits: '',  rangeLo: 0,   rangeHi: 1,   typical: 1,   scanRate: 1000,  step: true,  deadband: 0,   deadbandType: 'absolute', instrumentType: 'HS/ZS',  alarm: null, digitalStates: { 0: 'PARADO', 1: 'CORRIENDO' } },
   digital_breaker:     { dataType: 'integer', engUnits: '',  rangeLo: 0,   rangeHi: 1,   typical: 1,   scanRate: 1000,  step: true,  deadband: 0,   deadbandType: 'absolute', instrumentType: 'CS',     alarm: null, digitalStates: { 0: 'ABIERTO', 1: 'CERRADO' } },
 };
+
+// ─── Helper: build flat attributes, omitting null values ─────────────────
+
+function buildAttributes(profile, instLabel, idx, equipLabel, areaName, equipName) {
+  const attrs = {
+    description: `${instLabel} #${idx} — ${equipLabel}`,
+    engUnits: profile.engUnits,
+    dataType: profile.dataType,
+    rangeLo: profile.rangeLo,
+    rangeHi: profile.rangeHi,
+    typicalValue: profile.typical,
+    scanRateMs: profile.scanRate,
+    stepFlag: profile.step,
+    instrumentType: profile.instrumentType,
+    area: areaName,
+    equipment: equipName,
+    deadbandValue: profile.deadband,
+    deadbandType: profile.deadbandType,
+  };
+  // Only include alarm thresholds that are not null (TB rejects null in SHARED_SCOPE)
+  if (profile.alarm) {
+    if (profile.alarm.HH != null) attrs.alarmHH = profile.alarm.HH;
+    if (profile.alarm.H != null) attrs.alarmH = profile.alarm.H;
+    if (profile.alarm.L != null) attrs.alarmL = profile.alarm.L;
+    if (profile.alarm.LL != null) attrs.alarmLL = profile.alarm.LL;
+  }
+  if (profile.digitalStates) {
+    attrs.digitalStates = JSON.stringify(profile.digitalStates);
+  }
+  return attrs;
+}
+
+// ─── Flatten plant model into individual tag definitions ─────────────────
+// Returns array of { tagName, profile, areaName, equipName, label, description }
+
+export function flattenPlantTags() {
+  const tags = [];
+  for (const area of PLANT_MODEL.areas) {
+    for (const equip of area.equipment) {
+      for (const inst of equip.instruments) {
+        const profile = TAG_PROFILES[inst.profile];
+        for (let i = 1; i <= inst.count; i++) {
+          const idx = String(i).padStart(2, '0');
+          const tagName = `${inst.tagPrefix}${idx}`;
+          tags.push({
+            tagName,
+            profileName: inst.profile,
+            areaName: area.name,
+            equipName: equip.name,
+            label: `${inst.label} #${i}`,
+            description: `${inst.label} #${i} — ${equip.label}`,
+            // Flat attributes for the Device-tag (omit null values — TB rejects them)
+            attributes: buildAttributes(profile, inst.label, i, equip.label, area.name, equip.name),
+          });
+        }
+      }
+    }
+  }
+  return tags;
+}

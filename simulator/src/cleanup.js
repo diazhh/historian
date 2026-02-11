@@ -1,16 +1,24 @@
 /**
  * Removes all simulator-created entities from ThingsBoard.
- * Deletes devices first (to remove relations), then assets bottom-up.
+ * Deletes Device-tags first (type "Tag"), then assets bottom-up.
+ * Also removes the SimulatorGateway device if present.
  */
 export async function cleanupAll(tb) {
   console.log('[Cleanup] Removing simulator entities...\n');
 
-  // Delete devices of type 'Instrumentos'
-  const devices = await tb.getAllDevicesByType('Instrumentos');
-  console.log(`  Found ${devices.length} devices to delete`);
-  for (const d of devices) {
+  // Delete Device-tags (type "Tag")
+  const tags = await tb.getAllDevicesByType('Tag');
+  console.log(`  Found ${tags.length} Device-tags to delete`);
+  for (const d of tags) {
     await tb.deleteDevice(d.id.id);
-    console.log(`    Deleted device: ${d.name}`);
+  }
+  if (tags.length > 0) console.log(`    Deleted ${tags.length} Device-tags`);
+
+  // Delete SimulatorGateway if exists
+  const gw = await tb.findDeviceByName('SimulatorGateway');
+  if (gw) {
+    await tb.deleteDevice(gw.id.id);
+    console.log('    Deleted SimulatorGateway');
   }
 
   // Delete assets bottom-up: Equipment → Area → Site
@@ -19,8 +27,8 @@ export async function cleanupAll(tb) {
     console.log(`  Found ${assets.length} assets of type '${type}' to delete`);
     for (const a of assets) {
       await tb.deleteAsset(a.id.id);
-      console.log(`    Deleted asset: ${a.name}`);
     }
+    if (assets.length > 0) console.log(`    Deleted ${assets.length} assets`);
   }
 
   console.log('\n[Cleanup] Done');

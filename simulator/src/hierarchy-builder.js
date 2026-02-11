@@ -1,99 +1,77 @@
-import { PLANT_MODEL, TAG_PROFILES, QUALITY } from './config.js';
+import { PLANT_MODEL, flattenPlantTags } from './config.js';
 
 /**
- * Creates the full asset hierarchy in ThingsBoard:
- *   Site (Asset) → Area (Asset) → Equipment (Asset) → Device (Instruments)
- * Then sets tagConfig client attributes on each device.
+ * Creates the full asset hierarchy + individual Device-tags in ThingsBoard.
  *
- * Returns a flat list of { device, accessToken, tags[] } for the data generator.
+ * Model: 1 Device = 1 Tag
+ *   Site (Asset) → Area (Asset) → Equipment (Asset) → Device-Tag
+ *
+ * Each tag becomes its own Device with:
+ *   - name = tag name (e.g. "DA101.T01")
+ *   - type = "Tag"
+ *   - label = human-readable description
+ *   - flat SHARED_SCOPE attributes (engUnits, rangeLo, rangeHi, alarms, etc.)
+ *
+ * Returns a flat list of { deviceId, tagName, accessToken, profileName, areaName, equipName }
  */
 export async function buildHierarchy(tb) {
   const plant = PLANT_MODEL;
+  const tagDefs = flattenPlantTags();
   const deviceList = [];
 
   // 1. Create or find Site asset
   const site = await getOrCreateAsset(tb, plant.name, plant.type, plant.label);
   console.log(`[Hierarchy] Site: ${plant.name} (${site.id.id})`);
 
+  // 2. Create Area and Equipment assets (keep hierarchy for navigation)
+  const equipAssetMap = {}; // equipName → assetId
+
   for (const areaDef of plant.areas) {
-    // 2. Create Area asset, relate to Site
     const area = await getOrCreateAsset(tb, areaDef.name, areaDef.type, areaDef.label);
     await tb.createRelation('ASSET', site.id.id, 'ASSET', area.id.id, 'Contains');
     console.log(`  [Area] ${areaDef.name}`);
 
     for (const eqDef of areaDef.equipment) {
-      // 3. Create Equipment asset, relate to Area
       const equip = await getOrCreateAsset(tb, eqDef.name, eqDef.type, eqDef.label);
       await tb.createRelation('ASSET', area.id.id, 'ASSET', equip.id.id, 'Contains');
+      equipAssetMap[eqDef.name] = equip.id.id;
       console.log(`    [Equip] ${eqDef.name}`);
-
-      for (const instDef of eqDef.instruments) {
-        // 4. Create Device, relate to Equipment
-        const device = await getOrCreateDevice(tb, instDef.name, 'Instrumentos', instDef.label);
-        await tb.createRelation('ASSET', equip.id.id, 'DEVICE', device.id.id, 'Contains');
-        const creds = await tb.getDeviceCredentials(device.id.id);
-
-        // 5. Generate tags for this device
-        const profile = TAG_PROFILES[instDef.profile];
-        const tags = generateTags(instDef, profile, areaDef.name, eqDef.name);
-
-        // 6. Set tagConfig client attribute
-        const tagConfig = {};
-        for (const tag of tags) {
-          tagConfig[tag.key] = tag.meta;
-        }
-        await tb.setClientAttributes(device.id.id, { tagConfig });
-
-        deviceList.push({
-          deviceId: device.id.id,
-          deviceName: instDef.name,
-          accessToken: creds.credentialsId,
-          areaName: areaDef.name,
-          equipName: eqDef.name,
-          tags,
-        });
-
-        console.log(`      [Device] ${instDef.name} — ${tags.length} tags`);
-      }
     }
   }
 
-  const totalTags = deviceList.reduce((sum, d) => sum + d.tags.length, 0);
-  console.log(`\n[Hierarchy] Complete: ${deviceList.length} devices, ${totalTags} tags total`);
+  // 3. Create individual Device-tags and relate to their Equipment
+  console.log(`\n[Hierarchy] Creating ${tagDefs.length} Device-tags...`);
+  let created = 0;
+
+  for (const tagDef of tagDefs) {
+    const device = await getOrCreateDevice(tb, tagDef.tagName, 'Tag', tagDef.label);
+    const equipAssetId = equipAssetMap[tagDef.equipName];
+
+    // Relate Equipment → Device-tag
+    await tb.createRelation('ASSET', equipAssetId, 'DEVICE', device.id.id, 'Contains');
+
+    // Set flat attributes via SHARED_SCOPE (REST can't write CLIENT_SCOPE)
+    await tb.setClientAttributes(device.id.id, tagDef.attributes);
+
+    const creds = await tb.getDeviceCredentials(device.id.id);
+
+    deviceList.push({
+      deviceId: device.id.id,
+      tagName: tagDef.tagName,
+      accessToken: creds.credentialsId,
+      profileName: tagDef.profileName,
+      areaName: tagDef.areaName,
+      equipName: tagDef.equipName,
+    });
+
+    created++;
+    if (created % 50 === 0) {
+      console.log(`    [Progress] ${created}/${tagDefs.length} tags created`);
+    }
+  }
+
+  console.log(`\n[Hierarchy] Complete: ${deviceList.length} Device-tags created`);
   return deviceList;
-}
-
-function generateTags(instDef, profile, areaName, equipName) {
-  const tags = [];
-  for (let i = 1; i <= instDef.count; i++) {
-    const idx = String(i).padStart(2, '0');
-    const key = `${instDef.tagPrefix}${idx}`;
-    const meta = {
-      description: `${instDef.label} #${i}`,
-      engUnits: profile.engUnits,
-      dataType: profile.dataType,
-      rangeLo: profile.rangeLo,
-      rangeHi: profile.rangeHi,
-      typicalValue: profile.typical,
-      scanRateMs: profile.scanRate,
-      stepFlag: profile.step,
-      instrumentTag: key,
-      area: areaName,
-      equipment: equipName,
-      instrumentType: profile.instrumentType,
-      deadbandValue: profile.deadband,
-      deadbandType: profile.deadbandType,
-      alarmHH: profile.alarm?.HH ?? null,
-      alarmH: profile.alarm?.H ?? null,
-      alarmL: profile.alarm?.L ?? null,
-      alarmLL: profile.alarm?.LL ?? null,
-    };
-    if (profile.digitalStates) {
-      meta.digitalStates = profile.digitalStates;
-    }
-    tags.push({ key, meta, profile: instDef.profile });
-  }
-  return tags;
 }
 
 async function getOrCreateAsset(tb, name, type, label) {

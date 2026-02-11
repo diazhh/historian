@@ -26,27 +26,27 @@
 ## Detalle por Módulo
 
 ### M1: Tag Browser
-- **Función**: Árbol de navegación de planta. Expande nodos (Sitio > Área > Equipo > Device > Tags). Multi-select de tags para enviar al Trend Viewer.
-- **Datos**: Relations API (árbol), client attribute `tagConfig` (metadatos), telemetry latest (valores actuales)
-- **Emite**: Broadcast `tagsSelected` → `{deviceId, deviceName, tagKeys[]}`
+- **Función**: Árbol de navegación de planta. Expande nodos (Sitio > Área > Equipo > Tags). Cada Device es un tag. Multi-select de tags para enviar al Trend Viewer.
+- **Datos**: Relations API (árbol), atributos del Device-tag (metadatos), telemetry latest `PV` (valores actuales)
+- **Emite**: Broadcast `tagsSelected` → `{devices: [{deviceId, deviceName}]}`
 - **UI**: mat-tree con lazy loading, checkboxes, filtro de texto
 
 ### M2: Trend Viewer
 - **Función**: Gráfico de series temporales. Múltiples tags, zoom, pan, crosshair, estadísticas. **Módulo más importante.**
-- **Datos**: Broadcast `tagsSelected` (qué graficar), timeseries (histórico + real-time), `tagConfig` (unidades, tipo línea, rangos, alarmas)
+- **Datos**: Broadcast `tagsSelected` (qué graficar), timeseries key `PV` de cada Device-tag (histórico + real-time), atributos del Device-tag (unidades, tipo línea, rangos, alarmas)
 - **Agregación**: <24h crudo, 1-7d AVG@1min, 7-30d AVG@5min, 30d+ AVG@1h
 - **Features**: Step lines (tags digitales), markLine alarmas HH/H/L/LL, barra estadísticas TWA, exportar CSV
 - **UI**: ECharts con dataZoom (inside + slider), SVG renderer
 
 ### M3: Data Grid
-- **Función**: Tabla tipo Excel. Columnas = tags, filas = timestamps a intervalos regulares.
-- **Datos**: Timeseries con agg=AVG o NONE, `tagConfig` para alarmas
+- **Función**: Tabla tipo Excel. Columnas = tags (Device-tags), filas = timestamps a intervalos regulares.
+- **Datos**: Timeseries key `PV` con agg=AVG o NONE, atributos del Device-tag para alarmas
 - **Features**: Selector intervalo (1/5/15 min, 1h), coloreado por alarmas (rojo>HH, naranja>H, amarillo<L, rojo<LL), exportar CSV/Excel
 - **UI**: Angular Material Table o ag-Grid Community
 
 ### M4: Tag Configuration Manager
 - **Función**: Ver y editar metadatos de tags. Importar/exportar masivo desde Excel/CSV.
-- **Datos**: Lee client attribute `tagConfig`, escribe server-side attributes via REST
+- **Datos**: Lee atributos directos del Device-tag (description, engUnits, rangeLo, etc.), escribe server-side attributes via REST
 - **Nota**: Client attrs los envía el software de recolección. Modificaciones desde UI van como server attrs (prioridad sobre client).
 - **UI**: Tabla editable + SheetJS para Excel
 
@@ -83,9 +83,9 @@
 
 ### M11: Tag Search
 - **Función**: Búsqueda rápida de tags por nombre, descripción, tipo, área.
-- **Estrategia**: Cargar `tagConfig` de todos los Devices al iniciar, índice en memoria, búsqueda local.
+- **Estrategia**: Buscar Devices del Profile "Tag" con Entity Filters nativos de TB. Filtrar por atributos (area, equipment, instrumentType).
 - **Emite**: Broadcast `tagsSelected` → al Trend Viewer
-- **Nota**: Para 100K tags: ~50MB de memoria. Si es problema, paginar por Device.
+- **Nota**: Con 1 Device = 1 tag, la búsqueda usa `textSearch` nativo de TB o Entity Query API.
 
 ### M12: Comparison View
 - **Función**: Compara datos del mismo tag en diferentes períodos, o mismo tipo de tag en equipos paralelos.
@@ -119,7 +119,7 @@
 ### Fase 1 — MVP
 | Orden | Módulo | Semanas |
 |-------|--------|---------|
-| 0 | Configurar TB: Assets, relaciones, Device Profiles, Calculated Fields, Alarm Rules | 2 |
+| 0 | Configurar TB: Assets, relaciones, Device Profile "Tag", Calculated Fields, Alarm Rules | 2 |
 | 1 | Servicios compartidos (models, utils, TagMetadataService, TimeWeightedCalcService) | 1 |
 | 2 | M14: Asset Hierarchy Viewer | 2 |
 | 3 | M1: Tag Browser | 2 |
@@ -156,9 +156,10 @@
 ```
 Servicios compartidos ← TODO depende de esto
 M14 (Hierarchy) ← M1, M2, M3 dependen del contexto que M14 establece
-M1 (Tag Browser) ← M2 escucha el broadcast tagsSelected de M1
+M1 (Tag Browser) ← M2 escucha el broadcast tagsSelected de M1 (Device-tags)
 M9 (Export) ← integrado en M2 y M3
 M2 (Trend Viewer) ← M12, M13 son extensiones del patrón de M2
+Device Profile "Tag" ← Alarm Rules y Calculated Fields aplican a todos los 500 Device-tags
 ```
 
 ---

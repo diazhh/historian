@@ -76,18 +76,16 @@ export function generateAnalogSeries(tagKey, profileName, startMs, endMs, interv
   let currentStep = 0;
 
   for (let ts = startMs; ts <= endMs; ts += intervalMs) {
-    // Check maintenance windows
+    // Check maintenance windows — skip entirely (no data during shutdown)
     const inMaint = maintWindows.some(w => ts >= w.start && ts <= w.end);
     if (inMaint) {
-      series.push({ ts, pv: null, q: QUALITY.NOT_CONNECTED });
-      continue;
+      continue; // TB doesn't accept null values, so just skip
     }
 
-    // Check failure windows
+    // Check failure windows — value freezes at last known
     const inFailure = failureWindows.some(w => ts >= w.start && ts <= w.end);
     if (inFailure) {
-      // During failure, value freezes at last known + random spike
-      const lastPv = series.length > 0 ? (series[series.length - 1].pv ?? typical) : typical;
+      const lastPv = series.length > 0 ? series[series.length - 1].pv : typical;
       series.push({ ts, pv: lastPv, q: QUALITY.SENSOR_FAILURE });
       continue;
     }

@@ -148,7 +148,7 @@ historian-extensions/
 │       │
 │       ├── shared/                              ← SERVICIOS, MODELOS, UTILIDADES
 │       │   ├── services/
-│       │   │   ├── tag-metadata.service.ts      ← lee client attributes tagConfig
+│       │   │   ├── tag-metadata.service.ts      ← lee atributos del Device-tag
 │       │   │   ├── hierarchy.service.ts         ← navega Assets via Relations API
 │       │   │   ├── time-weighted.service.ts     ← cálculos ponderados por tiempo
 │       │   │   └── broadcast.service.ts         ← comunicación inter-widget
@@ -287,24 +287,25 @@ export class TrendViewerComponent implements OnInit, OnDestroy {
 
   private async loadData() {
     // ctx.data contiene los datos de las suscripciones configuradas en el widget
+    // Cada Device-tag tiene telemetry key "PV"
     if (this.ctx.data && this.ctx.data.length > 0) {
       const series = [];
 
       for (const ds of this.ctx.data) {
         const deviceId = ds.datasource?.entityId;
-        const tagKey = ds.dataKey?.name;  // ej: "TI-101-01.PV"
+        const deviceName = ds.datasource?.entityName;  // ej: "TI-101-01"
 
-        // Obtener metadatos del tag para unidades y tipo de línea
+        // Obtener metadatos del tag (atributos directos del Device)
         let engUnits = '';
         let isStep = false;
         if (deviceId) {
-          const config = await this.tagMeta.getTagConfig(this.ctx, deviceId);
-          engUnits = this.tagMeta.getEngUnits(config, tagKey);
-          isStep = this.tagMeta.isStep(config, tagKey);
+          const attrs = await this.tagMeta.getTagAttributes(this.ctx, deviceId);
+          engUnits = this.tagMeta.getEngUnits(attrs);
+          isStep = this.tagMeta.isStep(attrs);
         }
 
         series.push({
-          name: `${tagKey} (${engUnits})`,
+          name: `${deviceName} (${engUnits})`,
           type: 'line',
           step: isStep ? 'end' : false,
           data: ds.data.map(([ts, val]) => [ts, val]),
@@ -441,10 +442,11 @@ ngOnInit() {
 }
 
 async searchTags(query: string) {
-  // Buscar devices y leer sus tagConfig
+  // Buscar Device-tags del profile "Tag" por nombre
   const devices = await this.ctx.http.get(
-    '/api/tenant/devices?pageSize=100&page=0'
+    `/api/tenant/devices?type=Tag&pageSize=100&page=0&textSearch=${query}`
   ).toPromise();
+  // Cada Device es un tag — el nombre del Device es el nombre del tag
   // ...
 }
 ```
@@ -459,8 +461,9 @@ ngOnInit() {
     init: () => {
       // Escuchar cuando Tag Browser selecciona tags
       this.ctx.$scope.$on('tagsSelected', (event, payload) => {
-        // payload = { deviceId: '...', tagKeys: ['TI-101-01.PV', 'PI-101.PV'] }
-        this.loadTagsData(payload.deviceId, payload.tagKeys);
+        // payload = { devices: [{deviceId: '...', deviceName: 'TI-101-01'}, ...] }
+        // Cada Device ES un tag — telemetry key es siempre "PV"
+        this.loadTagsData(payload.devices);
         this.ctx.detectChanges();
       });
     }
@@ -471,8 +474,9 @@ ngOnInit() {
 Para **emitir** un broadcast desde un widget:
 
 ```typescript
-onTagSelected(deviceId: string, tagKeys: string[]) {
-  this.ctx.$scope.$broadcast('tagsSelected', { deviceId, tagKeys });
+onTagSelected(devices: {deviceId: string, deviceName: string}[]) {
+  // Cada Device es un tag — telemetry key es siempre "PV"
+  this.ctx.$scope.$broadcast('tagsSelected', { devices });
 }
 ```
 
@@ -493,15 +497,13 @@ export class MyWidgetComponent {
   constructor(private tagMeta: TagMetadataService) {}
 
   async loadTagInfo(deviceId: string) {
-    const config = await this.tagMeta.getTagConfig(this.ctx, deviceId);
+    // Cada Device ES un tag — sus atributos son los metadatos del tag
+    const attrs = await this.tagMeta.getTagAttributes(this.ctx, deviceId);
 
-    // Iterar tags
-    for (const [tagKey, meta] of Object.entries(config)) {
-      console.log(`${tagKey}: ${meta.description} (${meta.engUnits})`);
-      console.log(`  Rango: ${meta.rangeLo} - ${meta.rangeHi}`);
-      console.log(`  Alarmas: LL=${meta.alarmLL} L=${meta.alarmL} H=${meta.alarmH} HH=${meta.alarmHH}`);
-      console.log(`  Tipo: ${meta.stepFlag ? 'Discreto' : 'Analógico'}`);
-    }
+    console.log(`Descripción: ${attrs.description} (${attrs.engUnits})`);
+    console.log(`  Rango: ${attrs.rangeLo} - ${attrs.rangeHi}`);
+    console.log(`  Alarmas: LL=${attrs.alarmLL} L=${attrs.alarmL} H=${attrs.alarmH} HH=${attrs.alarmHH}`);
+    console.log(`  Tipo: ${attrs.stepFlag ? 'Discreto' : 'Analógico'}`);
   }
 }
 ```
@@ -525,10 +527,11 @@ export class TreeWidgetComponent {
         // Es un asset — puede tener más hijos (lazy load al expandir)
         this.tree.push({ ...child, expandable: true, loaded: false });
       } else if (child.type === 'DEVICE') {
-        // Es un device — cargar sus tags
-        const config = await this.tagMeta.getTagConfig(this.ctx, child.id);
-        const tagKeys = Object.keys(config);
-        this.tree.push({ ...child, expandable: false, tags: tagKeys });
+        // Es un Device-tag (hoja del árbol)
+        // El nombre del Device es el nombre del tag
+        // Leer sus atributos para mostrar descripción
+        const attrs = await this.tagMeta.getTagAttributes(this.ctx, child.id);
+        this.tree.push({ ...child, expandable: false, description: attrs.description });
       }
     }
   }
@@ -846,10 +849,10 @@ Esto se configura visualmente en: Widget → Actions → On Row Click → Naviga
 
 [equipment] Vista T-101
   selectedEntity = Asset "T-101"
-  childDevices alias resuelve: Device "T101-INST"
-  Tag Browser carga tagConfig de T101-INST → muestra TI-101-01.PV, PI-101.PV, etc.
-  Trend Viewer grafica los tags seleccionados
-  Data Grid tabula los valores
+  childDevices alias resuelve: Device "TI-101-01", Device "PI-101", Device "XV-101", ...
+  Tag Browser muestra los Device-tags como hojas del árbol
+  Trend Viewer grafica PV de los Device-tags seleccionados
+  Data Grid tabula los valores de PV
 
   Click en "← CDU" (breadcrumb) → vuelve a [area]
   Click en "← Planta" → vuelve a [default]
@@ -1024,13 +1027,13 @@ curl -X POST "https://TU_SERVIDOR/api/dashboard" \
 
 Verificar que el componente tiene `@Input() ctx: WidgetContext` y que el `templateHtml` incluye `[ctx]="ctx"`.
 
-### 10.4 Los atributos tagConfig no se leen
+### 10.4 Los atributos del Device-tag no se leen
 
 | Posible causa | Solución |
 |---------------|----------|
 | Se enviaron como `SERVER_SCOPE` en vez de `CLIENT_SCOPE` | Los client attributes los envía el software via MQTT a `v1/devices/me/attributes`. Verificar que el scope sea correcto |
-| El JSON de tagConfig es demasiado grande | TB tiene un límite de ~16KB por atributo por defecto. Si tienes muchos tags en un Device, particionar el tagConfig en varios atributos (ej: `tagConfig_1`, `tagConfig_2`) |
-| Key inexistente | Verificar: `GET /api/plugins/telemetry/DEVICE/{id}/values/attributes/CLIENT_SCOPE?keys=tagConfig` |
+| Key inexistente | Verificar: `GET /api/plugins/telemetry/DEVICE/{id}/values/attributes/CLIENT_SCOPE?keys=description,engUnits,rangeLo,rangeHi` |
+| Device Profile incorrecto | Verificar que el Device-tag usa el Device Profile "Tag" |
 
 ### 10.5 Dashboard state no navega
 
@@ -1065,13 +1068,13 @@ ngOnInit() {
 
 | Dato | Almacenamiento TB | Scope | Quién lo escribe |
 |------|-------------------|-------|------------------|
-| Descripción, engUnits, rangos, alarmas, etc. | Client Attribute `tagConfig` en el **Device** | CLIENT_SCOPE | Software de recolección (via MQTT) |
-| Valor actual (PV) | Telemetry key `TAGNAME.PV` en el **Device** | Telemetry | Software de recolección (via MQTT) |
-| Quality actual | Telemetry key `TAGNAME.Q` en el **Device** | Telemetry | Software de recolección (via MQTT) |
-| Quality como texto | Telemetry key `TAGNAME.QT` en el **Device** | Telemetry | Calculated Field (automático) |
-| Valores calculados | Telemetry key `CALC.XXX` en el **Device** | Telemetry | Calculated Field o Rule Chain |
-| Jerarquía de planta | Relations entre **Assets** y **Devices** | Relations | Configuración manual o script |
-| Overrides de config | Server Attribute en el **Device** | SERVER_SCOPE | Widget Tag Config Manager (M4) via REST API |
+| Descripción, engUnits, rangos, alarmas, etc. | Atributos directos del **Device-tag** (description, engUnits, rangeLo, alarmHH...) | CLIENT_SCOPE | Software de recolección (via MQTT) |
+| Valor actual (PV) | Telemetry key `PV` en el **Device-tag** | Telemetry | Software de recolección (via MQTT) |
+| Quality actual | Telemetry key `Q` en el **Device-tag** | Telemetry | Software de recolección (via MQTT) |
+| Quality como texto | Telemetry key `QT` en el **Device-tag** | Telemetry | Calculated Field (automático) |
+| Valores calculados | Atributo o telemetry en **Asset** padre | Telemetry/Attribute | Rule Chain |
+| Jerarquía de planta | Relations entre **Assets** y **Device-tags** | Relations | Configuración manual o script |
+| Overrides de config | Server Attribute en el **Device-tag** | SERVER_SCOPE | Widget Tag Config Manager (M4) via REST API |
 
 ### 11.2 Endpoints REST API más usados
 
@@ -1106,8 +1109,8 @@ ngOnInit() {
 
 | Módulo | Doc A (datos) | Doc B (módulos) | Doc C (implementación) |
 |--------|-------------|----------------|----------------------|
-| Datos estáticos (tagConfig) | Sección 4 | — | Sección 6.1 |
-| Datos dinámicos (telemetría) | Sección 5 | — | Sección 5.2 |
+| Datos estáticos (atributos Device-tag) | Sección 4 | — | Sección 6.1 |
+| Datos dinámicos (PV, Q) | Sección 5 | — | Sección 5.2 |
 | Jerarquía de planta | Sección 7 | Sección 2.1 | Sección 8.4 |
 | Calculated Fields | — | Sección 2.2, 2.3 | — |
 | Alarm Rules | — | Sección 2.4 | — |

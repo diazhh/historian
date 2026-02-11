@@ -21,14 +21,14 @@ function parseArgs() {
 function saveState(deviceList) {
   const serializable = deviceList.map(d => ({
     deviceId: d.deviceId,
-    deviceName: d.deviceName,
+    tagName: d.tagName,
     accessToken: d.accessToken,
+    profileName: d.profileName,
     areaName: d.areaName,
     equipName: d.equipName,
-    tags: d.tags,
   }));
   writeFileSync(STATE_FILE, JSON.stringify(serializable, null, 2));
-  console.log(`[State] Saved to ${STATE_FILE}`);
+  console.log(`[State] Saved ${serializable.length} tags to ${STATE_FILE}`);
 }
 
 function loadState() {
@@ -41,7 +41,7 @@ async function main() {
   const tb = new TbClient();
 
   console.log('╔══════════════════════════════════════════════╗');
-  console.log('║   Historian Simulator for ThingsBoard PE     ║');
+  console.log('║   Historian Simulator — 1 Device = 1 Tag     ║');
   console.log('╚══════════════════════════════════════════════╝\n');
 
   try {
@@ -58,7 +58,7 @@ async function main() {
     return;
   }
 
-  // Step 1: Build hierarchy
+  // Step 1: Build hierarchy (assets + 500 Device-tags)
   let deviceList;
   if (step === 'all' || step === 'hierarchy') {
     deviceList = await buildHierarchy(tb);
@@ -73,20 +73,23 @@ async function main() {
       console.error('[Error] No state found. Run --step hierarchy first, or run without --step for full setup.');
       process.exit(1);
     }
-    console.log(`[State] Loaded ${deviceList.length} devices from state file`);
+    console.log(`[State] Loaded ${deviceList.length} Device-tags from state file`);
   }
 
-  // Step 2: Generate tag configs (already done in hierarchy builder)
-  if (step === 'tags') {
-    // Re-push tagConfig attributes for all devices
+  // Step 2: Re-push attributes (useful after config changes)
+  if (step === 'attrs') {
+    const { flattenPlantTags } = await import('./config.js');
+    const tagDefs = flattenPlantTags();
+    const tagMap = {};
+    for (const t of tagDefs) tagMap[t.tagName] = t.attributes;
+
     for (const dev of deviceList) {
-      const tagConfig = {};
-      for (const tag of dev.tags) {
-        tagConfig[tag.key] = tag.meta;
+      const attrs = tagMap[dev.tagName];
+      if (attrs) {
+        await tb.setClientAttributes(dev.deviceId, attrs);
       }
-      await tb.setClientAttributes(dev.deviceId, { tagConfig });
-      console.log(`[Tags] Updated tagConfig for ${dev.deviceName}`);
     }
+    console.log(`[Attrs] Updated attributes for ${deviceList.length} Device-tags`);
     return;
   }
 
@@ -101,7 +104,7 @@ async function main() {
 
   // Step 4: Start realtime simulation
   if (step === 'all' || step === 'realtime') {
-    await startRealtimeSimulation(deviceList);
+    await startRealtimeSimulation(deviceList, tb);
   }
 }
 

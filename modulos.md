@@ -12,7 +12,7 @@
 | Qué | Dónde en ThingsBoard | Quién lo hace |
 |-----|---------------------|---------------|
 | Crear Assets (jerarquía de planta) | Admin TB → Entities → Assets | Tú, manualmente o por script |
-| Crear Devices (donde llegan los datos) | Admin TB → Entities → Devices | Tú, uno por cada grupo de tags |
+| Crear Devices (1 por tag) | Admin TB → Entities → Devices | Tú, uno por cada tag |
 | Crear relaciones (Asset Contains Device) | Admin TB → Asset → Relations | Tú |
 | Alarm rules (límites HH/H/L/LL) | Admin TB → Device Profiles → Alarm Rules | Tú |
 | Calculated Fields (quality a texto, etc.) | Admin TB → Device Profiles → Calculated Fields | Tú |
@@ -35,7 +35,7 @@ thingsboard-extensions/
 └── src/app/
     ├── shared/                          ← servicios, modelos, utilidades
     │   ├── services/
-    │   │   ├── tag-metadata.service.ts  ← lee client attributes del Device
+    │   │   ├── tag-metadata.service.ts  ← lee atributos del Device-tag
     │   │   ├── hierarchy.service.ts     ← navega Assets con Relations API
     │   │   └── time-weighted.service.ts ← cálculos ponderados por tiempo
     │   ├── models/
@@ -61,7 +61,7 @@ thingsboard-extensions/
 
 Antes de escribir una línea de código en extensiones, configurar esto en la plataforma:
 
-### 2.1 Jerarquía de Assets
+### 2.1 Jerarquía de Assets y Devices-Tag
 
 Crear manualmente o por script via REST API:
 
@@ -69,11 +69,15 @@ Crear manualmente o por script via REST API:
 Asset: "Refinería Norte"     (Asset Profile: Sitio)
 ├── Contains → Asset: "CDU"  (Asset Profile: AreaProceso)
 │   ├── Contains → Asset: "T-101"  (Asset Profile: Equipo)
-│   │   └── Contains → Device: "T101-INST"  (Device Profile: Instrumentos)
+│   │   ├── Contains → Device: "TI-101-01"  (Device Profile: Tag)
+│   │   ├── Contains → Device: "TI-101-02"  (Device Profile: Tag)
+│   │   ├── Contains → Device: "PI-101"     (Device Profile: Tag)
+│   │   ├── Contains → Device: "FIC-101"    (Device Profile: Tag)
+│   │   └── Contains → Device: "XV-101"     (Device Profile: Tag)
 │   ├── Contains → Asset: "F-201"  (Asset Profile: Equipo)
-│   │   └── Contains → Device: "F201-INST"
+│   │   └── Contains → Device: "TI-201-01"  (Device Profile: Tag)
 │   └── Contains → Asset: "E-101"  (Asset Profile: Equipo)
-│       └── Contains → Device: "E101-INST"
+│       └── Contains → Device: "TI-301-01"  (Device Profile: Tag)
 ├── Contains → Asset: "FCC"
 │   └── ...
 └── Contains → Asset: "Utilidades"
@@ -82,19 +86,22 @@ Asset: "Refinería Norte"     (Asset Profile: Sitio)
 
 Las relaciones son tipo `Contains`, dirección `FROM` Asset padre `TO` Asset/Device hijo.
 
+Cada Device-tag tiene sus metadatos como atributos planos (no un JSON `tagConfig`):
+- `description`, `engUnits`, `dataType`, `rangeLo`, `rangeHi`, `alarmHH`, `alarmH`, `alarmL`, `alarmLL`, etc.
+
 ### 2.2 Calculated Fields para Quality
 
-En el **Device Profile** "Instrumentos", crear Calculated Fields que conviertan el quality numérico a texto legible. Un Calculated Field por cada tag, o un script genérico.
+En el **Device Profile** "Tag", crear un Calculated Field que convierta el quality numérico a texto legible. Solo se necesita **uno** porque todos los tags tienen la misma key `Q`:
 
-**Ejemplo — Calculated Field tipo Script (TBEL):**
+**Calculated Field tipo Script (TBEL):**
 
 ```
 Nombre: QUALITY_TEXT
-Input: telemetry key pattern "*.Q" (todos los quality)
-Output: nuevo telemetry key con sufijo ".QT"
+Input: telemetry key "Q"
+Output: nuevo telemetry key "QT"
 
 Script:
-var q = $['TI-101-01.Q'];
+var q = $['Q'];
 if (q >= 192) return "Good";
 if (q >= 64) return "Uncertain";
 if (q == 24) return "Sensor Failure";
@@ -102,8 +109,6 @@ if (q == 28) return "Out of Range";
 if (q == 32) return "Not Connected";
 return "Bad";
 ```
-
-**Nota**: Si hay muchos tags, puede ser más práctico hacer la conversión quality→texto en el widget (client-side) en vez de crear un Calculated Field por cada `.Q`. Decisión tuya según rendimiento.
 
 **Alternativa client-side** (en el widget, sin Calculated Field):
 
@@ -118,13 +123,6 @@ export function qualityToText(code: number): string {
   return 'Bad';
 }
 
-// Nota: Los códigos de quality vienen del estándar OPC-UA.
-// Ver Documento A, Sección 5 para la tabla completa.
-// La conversión se puede hacer aquí (client-side) O mediante un Calculated Field
-// en el Device Profile (server-side, ver Sección 2.2 arriba).
-// Si hay pocos tags, Calculated Field es más limpio.
-// Si hay miles de tags, la conversión client-side es más práctica.
-
 export function qualityIsGood(code: number): boolean {
   return code >= 192;
 }
@@ -132,44 +130,51 @@ export function qualityIsGood(code: number): boolean {
 
 ### 2.3 Calculated Fields para valores derivados
 
-Estos se configuran en Device Profiles, no en código:
+Estos se configuran en **Rule Chains** (no en Device Profile), ya que involucran datos de **múltiples Devices-tag**:
 
-| Calculated Field | Tipo | Expresión | Output key |
-|-----------------|------|-----------|------------|
-| Caída de presión | Simple | `$['PI-101-BOTTOM.PV'] - $['PI-101-TOP.PV']` | `CALC.DELTA-P` |
-| Rendimiento overhead | Simple | `($['FIC-OVERHEAD.PV'] / $['FIC-FEED.PV']) * 100` | `CALC.YIELD-OH` |
-| Approach temperature | Simple | `$['TI-HOTOUT.PV'] - $['TI-COLDIN.PV']` | `CALC.APPROACH` |
-| Heat duty | Simple | `$['FIC-FEED.PV'] * 2.1 * ($['TI-OUT.PV'] - $['TI-IN.PV'])` | `CALC.HEAT-DUTY` |
+| Cálculo | Tipo | Tags involucrados | Output |
+|---------|------|-------------------|--------|
+| Caída de presión | Rule Chain | PI-101-BOTTOM.PV - PI-101-TOP.PV | Asset attribute o nuevo Device |
+| Rendimiento overhead | Rule Chain | FIC-OVERHEAD.PV / FIC-FEED.PV * 100 | Asset attribute |
+| Approach temperature | Rule Chain | TI-HOTOUT.PV - TI-COLDIN.PV | Asset attribute |
 
-**Calculated Fields a nivel de Profile** se aplican automáticamente a todos los Devices de ese Profile (como un template).
+**Nota**: Con 1 Device = 1 tag, los Calculated Fields del Device Profile solo tienen acceso a `PV` y `Q` del propio tag. Para cálculos entre tags se usa Rule Engine con `Related Attributes` para obtener telemetría de otros Devices.
 
-### 2.4 Alarm Rules en Device Profile
+### 2.4 Alarm Rules en Device Profile "Tag"
 
-Configurar en Device Profile → Alarm Rules:
+Como todos los tags comparten el Device Profile "Tag", las reglas se definen **una sola vez** con umbrales dinámicos:
 
 ```
-Alarm: "HIGH_TEMPERATURE"
-  Create condition: TI-101-01.PV > [dynamic value: attribute 'alarmH' from tagConfig]
-  Clear condition: TI-101-01.PV < [attribute 'alarmH' - hysteresis]
-  Severity: MAJOR
+Alarm: "HIGH_HIGH"
+  Create condition: PV > [dynamic value: attribute 'alarmHH']
+  Clear condition: PV < [attribute 'alarmHH' - attribute 'deadbandValue']
+  Severity: CRITICAL
   Propagate to related entities: YES (para que aparezca en Assets padre)
 
-Alarm: "HIHI_TEMPERATURE"
-  Create condition: TI-101-01.PV > [dynamic value: attribute 'alarmHH' from tagConfig]
-  Severity: CRITICAL
+Alarm: "HIGH"
+  Create condition: PV > [dynamic value: attribute 'alarmH']
+  Severity: MAJOR
   Propagate: YES
+
+Alarm: "LOW"
+  Create condition: PV < [dynamic value: attribute 'alarmL']
+  Severity: MAJOR
+
+Alarm: "LOW_LOW"
+  Create condition: PV < [dynamic value: attribute 'alarmLL']
+  Severity: CRITICAL
 ```
 
-**Umbrales dinámicos**: Los valores de alarmH/HH/L/LL están en el client attribute `tagConfig` que envía el software de recolección. Las alarm rules pueden referenciar estos atributos para que cada Device tenga sus propios límites.
+**Los umbrales (`alarmHH`, `alarmH`, etc.) son atributos directos de cada Device-tag.** Cada tag tiene sus propios límites. Tags sin alarmas tienen estos atributos en `null` y las alarm rules no disparan.
 
 ### 2.5 Rule Chain para cálculos multi-device
 
-Cuando un cálculo necesita datos de **varios Devices** (ej: totalizar flujos de distintas alimentaciones), usar Rule Engine:
+Cuando un cálculo necesita datos de **varios tags** (ej: totalizar flujos de distintas alimentaciones), usar Rule Engine:
 
 ```
 Nodo 1: [Message Type Switch] → solo "Post telemetry"
-Nodo 2: [Originator Attributes] → enriquece con atributos del device
-Nodo 3: [Related Attributes] → obtiene telemetría de devices relacionados
+Nodo 2: [Originator Attributes] → enriquece con atributos del device-tag
+Nodo 3: [Related Attributes] → obtiene telemetría de devices-tag relacionados
 Nodo 4: [Script Transformation] → cálculo TBEL
 Nodo 5: [Save Timeseries] → guarda resultado en el Asset padre
 ```
@@ -182,23 +187,23 @@ Nodo 5: [Save Timeseries] → guarda resultado en el Asset padre
 
 ### M1: Tag Browser
 
-**Qué hace**: Árbol de navegación de la planta. El usuario expande nodos (Sitio → Área → Equipo → Device → Tags). Al seleccionar tags, los envía al Trend Viewer.
+**Qué hace**: Árbol de navegación de la planta. El usuario expande nodos (Sitio → Área → Equipo → Tags). Al seleccionar tags, los envía al Trend Viewer.
 
 **Tipo widget TB**: `latest`
 
 **Datos que lee**:
-- REST API Relations → para construir el árbol de Assets/Devices
-- Client attribute `tagConfig` del Device → para listar tags y mostrar metadatos
-- Telemetry latest → para mostrar valor actual junto a cada tag
+- REST API Relations → para construir el árbol de Assets y Devices-tag
+- Atributos del Device-tag (`description`, `engUnits`, `instrumentType`) → para mostrar metadatos junto a cada tag
+- Telemetry latest `PV` → para mostrar valor actual junto a cada tag
 
 **Datos que emite**:
-- Broadcast `tagsSelected` → al Trend Viewer y Data Grid con `{deviceId, tagKeys[]}`
+- Broadcast `tagsSelected` → al Trend Viewer y Data Grid con `{devices: [{deviceId, deviceName}]}`
 
 **Cómo el árbol se construye**:
 1. Pedir hijos del Asset raíz: `GET /api/relations?fromId={rootAssetId}&fromType=ASSET&relationType=Contains`
-2. Eso retorna Assets hijos y/o Devices
+2. Eso retorna Assets hijos y/o Devices-tag
 3. Al expandir un nodo, pedir sus hijos (lazy loading)
-4. Al llegar a un Device, leer su `tagConfig` para listar los tags
+4. Al llegar a un Device-tag (hoja), leer sus atributos para mostrar descripción y último valor
 
 **Librería UI**: `mat-tree` de Angular Material
 
@@ -212,8 +217,8 @@ Nodo 5: [Save Timeseries] → guarda resultado en el Asset padre
 
 **Datos que lee**:
 - Broadcast `tagsSelected` → qué tags graficar
-- Telemetry timeseries → datos históricos y real-time
-- Client attribute `tagConfig` → engUnits (para ejes Y), stepFlag (para tipo de línea), rangeLo/Hi (para escala)
+- Telemetry timeseries key `PV` de cada Device-tag → datos históricos y real-time
+- Atributos del Device-tag → `engUnits` (para ejes Y), `stepFlag` (para tipo de línea), `rangeLo/rangeHi` (para escala)
 
 **Estrategia de consulta**:
 
@@ -238,12 +243,12 @@ Nodo 5: [Save Timeseries] → guarda resultado en el Asset padre
 **Tipo widget TB**: `timeseries`
 
 **Datos que lee**:
-- Telemetry timeseries con `agg=AVG` o `agg=NONE`
-- Client attribute `tagConfig` → alarmas para coloreado de celdas
+- Telemetry timeseries key `PV` de cada Device-tag con `agg=AVG` o `agg=NONE`
+- Atributos del Device-tag → alarmas para coloreado de celdas
 
 **Funcionalidades**:
 - Selector de intervalo (1 min, 5 min, 15 min, 1 hora)
-- Coloreado: rojo si valor > alarmHH, naranja si > alarmH, amarillo si < alarmL, rojo si < alarmLL
+- Coloreado: rojo si PV > alarmHH, naranja si > alarmH, amarillo si < alarmL, rojo si < alarmLL
 - Exportar a CSV/Excel
 
 **Librería**: ag-Grid Community o Angular Material Table
@@ -257,7 +262,7 @@ Nodo 5: [Save Timeseries] → guarda resultado en el Asset padre
 **Tipo widget TB**: `static`
 
 **Datos que lee/escribe**:
-- Client attribute `tagConfig` del Device (lectura)
+- Atributos del Device-tag (lectura directa — `description`, `engUnits`, `rangeLo`, etc.)
 - Si necesitas modificar, escribir server-side attributes via REST API: `POST /api/plugins/telemetry/DEVICE/{id}/SERVER_SCOPE`
 
 **Nota**: Los client attributes los envía el software de recolección. Si tú quieres modificar metadatos desde el widget, escríbelos como **server-side attributes** (que tienen prioridad sobre client-side para display). O acuerda con el equipo de recolección un mecanismo de sincronización.
@@ -286,7 +291,7 @@ El widget nativo ya soporta: filtrado por severidad, reconocimiento con comentar
 
 **Enfoque**: Evaluar primero el **widget SCADA nativo de TB PE**. Si no es suficiente, crear extensión custom con SVG.
 
-**Datos que lee**: Telemetry latest para mostrar valores actuales sobre el gráfico
+**Datos que lee**: Telemetry latest `PV` de cada Device-tag para mostrar valores actuales sobre el gráfico
 
 ---
 
@@ -325,7 +330,6 @@ El widget nativo ya soporta: filtrado por severidad, reconocimiento con comentar
 - Botón "Exportar Excel" usando SheetJS
 
 ```typescript
-// Ejemplo de export, reutilizable en cualquier módulo
 function exportToCSV(headers: string[], rows: any[][], filename: string) {
   const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -358,9 +362,10 @@ ThingsBoard ya registra automáticamente creación/edición/borrado de entidades
 
 **Tipo widget TB**: `static`
 
-**Estrategia**: Cargar el `tagConfig` de todos los Devices al iniciar, construir índice en memoria, buscar localmente.
+**Estrategia**: Buscar Devices del Profile "Tag" usando los Entity Filters nativos de TB. Se puede filtrar por atributos (`area`, `equipment`, `instrumentType`, `description`).
 
-Para 100K tags: ~50MB de memoria. Aceptable en desktop. Si es problema, paginar: buscar Device por Device.
+- `GET /api/tenant/devices?type=Tag&textSearch={query}` para búsqueda por nombre
+- Para búsqueda avanzada por atributos: usar Entity Query API con filtros de atributos
 
 **Datos que emite**: Broadcast `tagsSelected` → al Trend Viewer
 
@@ -372,7 +377,7 @@ Para 100K tags: ~50MB de memoria. Aceptable en desktop. Si es problema, paginar:
 
 **Tipo widget TB**: `timeseries`
 
-**Técnica**: Crear dos suscripciones de telemetría con rangos de tiempo diferentes. Alinear en eje X relativo (hora 0, hora 1, ...) restando el startTime de cada serie.
+**Técnica**: Crear dos suscripciones de telemetría (`PV`) con rangos de tiempo diferentes. Alinear en eje X relativo (hora 0, hora 1, ...) restando el startTime de cada serie.
 
 ---
 
@@ -384,8 +389,8 @@ Para 100K tags: ~50MB de memoria. Aceptable en desktop. Si es problema, paginar:
 
 **Cálculos**:
 - Estadísticas básicas: `TimeWeightedCalcService` (promedio time-weighted, stddev, min, max)
-- Histograma: calcular bins client-side, mostrar con ECharts bar chart
-- XY Scatter: consultar dos tags, emparejar por timestamp, plotear con ECharts scatter
+- Histograma: calcular bins client-side sobre `PV`, mostrar con ECharts bar chart
+- XY Scatter: consultar `PV` de dos Device-tags, emparejar por timestamp, plotear con ECharts scatter
 - SPC (I-MR): calcular límites de control client-side (xBar, mrBar, UCL, LCL)
 
 **Librería de cálculo**: `simple-statistics` (npm) para regresión, percentiles, etc.
@@ -412,7 +417,7 @@ onNodeClick(node) {
 
 Esto hace que todos los widgets del dashboard que usen un **alias tipo "entity from dashboard state"** automáticamente muestren datos del nodo seleccionado.
 
-Es la base de la experiencia: seleccionar un equipo en el árbol → el Trend Viewer muestra sus tags → el Alarm Viewer muestra sus alarmas → etc.
+Es la base de la experiencia: seleccionar un equipo en el árbol → los widgets muestran los Device-tags relacionados.
 
 ---
 
@@ -444,7 +449,7 @@ Estos son archivos TypeScript dentro de `src/app/shared/services/`. Son clases `
 
 ### TagMetadataService
 
-**Qué hace**: Lee el client attribute `tagConfig` de un Device y lo cachea.
+**Qué hace**: Lee los atributos de un Device-tag y los cachea.
 
 ```typescript
 import { Injectable } from '@angular/core';
@@ -454,42 +459,45 @@ export class TagMetadataService {
   private cache: Map<string, any> = new Map();
 
   /**
-   * Lee tagConfig del Device.
+   * Lee atributos del Device-tag.
    * ctx = WidgetContext que el componente del widget le pasa.
    */
-  async getTagConfig(ctx: any, deviceId: string): Promise<Record<string, any>> {
+  async getTagAttributes(ctx: any, deviceId: string): Promise<Record<string, any>> {
     if (this.cache.has(deviceId)) {
       return this.cache.get(deviceId);
     }
 
-    // Leer client attribute 'tagConfig' del device
+    // Leer atributos del device-tag (CLIENT_SCOPE + SERVER_SCOPE)
     const attrs = await ctx.attributeService.getEntityAttributes(
       { entityType: 'DEVICE', id: deviceId },
-      'CLIENT_SCOPE',  // porque lo envía el software de recolección
-      ['tagConfig']
+      'CLIENT_SCOPE',
+      ['description', 'engUnits', 'dataType', 'rangeLo', 'rangeHi',
+       'typicalValue', 'stepFlag', 'instrumentType', 'area', 'equipment',
+       'alarmHH', 'alarmH', 'alarmL', 'alarmLL', 'deadbandValue']
     ).toPromise();
 
-    const tagConfigAttr = attrs.find(a => a.key === 'tagConfig');
-    const config = tagConfigAttr ? JSON.parse(tagConfigAttr.value) : {};
+    const config: Record<string, any> = {};
+    for (const attr of attrs) {
+      config[attr.key] = attr.value;
+    }
     this.cache.set(deviceId, config);
     return config;
   }
 
-  getEngUnits(config: any, tagKey: string): string {
-    return config?.[tagKey]?.engUnits || '';
+  getEngUnits(config: any): string {
+    return config?.engUnits || '';
   }
 
-  isStep(config: any, tagKey: string): boolean {
-    return config?.[tagKey]?.stepFlag === true;
+  isStep(config: any): boolean {
+    return config?.stepFlag === true;
   }
 
-  getAlarmLimits(config: any, tagKey: string) {
-    const tag = config?.[tagKey];
+  getAlarmLimits(config: any) {
     return {
-      hh: tag?.alarmHH,
-      h: tag?.alarmH,
-      l: tag?.alarmL,
-      ll: tag?.alarmLL
+      hh: config?.alarmHH,
+      h: config?.alarmH,
+      l: config?.alarmL,
+      ll: config?.alarmLL
     };
   }
 }
@@ -504,7 +512,6 @@ export class TagMetadataService {
 export class HierarchyService {
 
   async getChildren(ctx: any, parentId: string, parentType: string = 'ASSET') {
-    // Llama al REST API de ThingsBoard
     const url = `/api/relations?fromId=${parentId}&fromType=${parentType}&relationType=Contains`;
     const relations = await ctx.http.get(url).toPromise();
 
@@ -513,6 +520,7 @@ export class HierarchyService {
       type: rel.to.entityType,  // 'ASSET' o 'DEVICE'
     }));
     // Luego resolver nombres con GET /api/asset/{id} o GET /api/device/{id}
+    // Los Devices son tags — su nombre es el nombre del tag
   }
 }
 ```
@@ -559,7 +567,7 @@ export class TimeWeightedCalcService {
 
 | Orden | Módulo | Semanas |
 |-------|--------|---------|
-| 0 | Configurar TB: Assets, relaciones, Device Profiles, Calculated Fields, Alarm Rules | 2 |
+| 0 | Configurar TB: Assets, relaciones, Device Profile "Tag", Calculated Fields, Alarm Rules | 2 |
 | 1 | Servicios compartidos (shared/) | 1 |
 | 2 | M14: Asset Hierarchy Viewer (controla el contexto) | 2 |
 | 3 | M1: Tag Browser | 2 |
