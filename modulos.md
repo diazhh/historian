@@ -1,3 +1,8 @@
+> ⚠️ **LEGACY** — Este archivo ha sido migrado a `docs/05-widgets-custom/`. La documentación canónica está en:
+> - [docs/05-widgets-custom/README.md](./docs/05-widgets-custom/README.md) — Resumen de 16 módulos
+> - [docs/05-widgets-custom/servicios-compartidos.md](./docs/05-widgets-custom/servicios-compartidos.md)
+> - Specs individuales: `docs/05-widgets-custom/m01-tag-browser.md` ... `m16-batch-event-analysis.md`
+
 # Especificación de Módulos — Historiador ThingsBoard PE
 
 **Para**: Desarrollo de widgets con `thingsboard/thingsboard-extensions`

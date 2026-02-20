@@ -1,3 +1,9 @@
+> ⚠️ **LEGACY** — Este archivo ha sido migrado a `docs/02-modelo-datos/`. La documentación canónica está en:
+> - [docs/02-modelo-datos/modelo-1-device-1-tag.md](./docs/02-modelo-datos/modelo-1-device-1-tag.md)
+> - [docs/02-modelo-datos/integracion-mqtt.md](./docs/02-modelo-datos/integracion-mqtt.md)
+> - [docs/02-modelo-datos/jerarquia-assets.md](./docs/02-modelo-datos/jerarquia-assets.md)
+> - [docs/02-modelo-datos/quality-codes.md](./docs/02-modelo-datos/quality-codes.md)
+
 # Especificación de Integración de Datos — Historiador ThingsBoard PE
 
 **Para**: El software/equipo que recolecta datos del DCS/PLC

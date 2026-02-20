@@ -1,32 +1,19 @@
+///
+/// Industrial Historian - Tag Models
+///
+
 export interface TagConfig {
+  deviceId: string;
+  deviceName: string;
   description: string;
   engUnits: string;
-  dataType: 'FLOAT' | 'DIGITAL' | 'INTEGER' | 'STRING';
-  rangeLo: number;
-  rangeHi: number;
-  typicalValue: number;
-  scanRateMs: number;
-  stepFlag: boolean;
-  instrumentTag: string;
-  area: string;
-  equipment: string;
+  dataType: 'AI' | 'DI' | 'CALC' | 'TOT';
+  rangeLow: number;
+  rangeHigh: number;
+  setpoint: number;
+  deadband: number;
+  scanRate: string;
   instrumentType: string;
-  alarmHH: number | null;
-  alarmH: number | null;
-  alarmL: number | null;
-  alarmLL: number | null;
-  deadbandValue: number;
-  deadbandType: 'ABSOLUTE' | 'PERCENT';
-  digitalStates?: Record<string, string>;
-}
-
-export interface TagConfigMap {
-  [tagKey: string]: TagConfig;
-}
-
-export interface TagDataPoint {
-  ts: number;
-  value: number | null;
 }
 
 export interface AlarmLimits {
@@ -36,11 +23,34 @@ export interface AlarmLimits {
   ll: number | null;
 }
 
+export interface TagMetadata extends TagConfig {
+  alarmLimits: AlarmLimits;
+}
+
+export interface TagDataPoint {
+  ts: number;
+  value: number;
+  quality?: number;
+}
+
 export enum QualityCode {
-  Good = 192,
-  Uncertain = 64,
-  BadSensorFailure = 24,
-  BadOutOfRange = 28,
-  BadNotConnected = 32,
-  Bad = 0,
+  GOOD = 192,
+  UNCERTAIN = 64,
+  SENSOR_FAILURE = 24,
+  OUT_OF_RANGE = 28,
+  NOT_CONNECTED = 32,
+  BAD = 0
+}
+
+export function qualityToText(code: number): string {
+  if (code >= 192) return 'Good';
+  if (code >= 64) return 'Uncertain';
+  if (code === 24) return 'Sensor Failure';
+  if (code === 28) return 'Out of Range';
+  if (code === 32) return 'Not Connected';
+  return 'Bad';
+}
+
+export function isQualityGood(code: number): boolean {
+  return code >= 192;
 }

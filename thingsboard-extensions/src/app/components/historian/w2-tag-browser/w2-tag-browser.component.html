@@ -1,0 +1,192 @@
+<!--
+  Industrial Historian - W2 Tag Browser Template
+-->
+<div class="tag-browser">
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.active]="activeTab === 'browse'" (click)="setTab('browse')">Browse</button>
+    <button class="tab-btn" [class.active]="activeTab === 'search'" (click)="setTab('search')">Search</button>
+    <button class="tab-btn" [class.active]="activeTab === 'favorites'" (click)="setTab('favorites')">Favorites</button>
+    <button class="tab-btn" [class.active]="activeTab === 'recents'" (click)="setTab('recents')">Recents</button>
+  </div>
+
+  <!-- Search Bar (visible in search tab) -->
+  <div class="search-bar" *ngIf="activeTab === 'search'">
+    <input
+      type="text"
+      class="search-input"
+      placeholder="Search tags by name..."
+      [ngModel]="searchQuery"
+      (ngModelChange)="onSearchInput($event)"
+    />
+    <span class="search-icon" *ngIf="!searching">&#128269;</span>
+    <span class="search-spinner" *ngIf="searching">&#8987;</span>
+  </div>
+
+  <!-- Browse Tab: Tree View -->
+  <div class="tree-container" *ngIf="activeTab === 'browse'">
+    <div class="loading-indicator" *ngIf="loadingRoot">Loading assets...</div>
+    <div class="empty-state" *ngIf="!loadingRoot && treeNodes.length === 0">No assets found.</div>
+    <ng-container *ngFor="let node of treeNodes; trackBy: trackByNodeId">
+      <ng-container *ngTemplateOutlet="treeNodeTpl; context: { $implicit: node }"></ng-container>
+    </ng-container>
+  </div>
+
+  <!-- Search Tab: Results List -->
+  <div class="results-container" *ngIf="activeTab === 'search'">
+    <div class="empty-state" *ngIf="!searching && searchQuery.length >= 2 && searchResults.length === 0">
+      No tags found for "{{ searchQuery }}".
+    </div>
+    <div
+      class="device-row"
+      *ngFor="let node of searchResults; trackBy: trackByNodeId"
+      [class.selected]="node.selected"
+      (click)="onTagClick(node)"
+      (contextmenu)="onContextMenu($event, node)"
+    >
+      <input
+        type="checkbox"
+        class="tag-checkbox"
+        [checked]="node.selected"
+        (change)="toggleSelection(node)"
+        (click)="$event.stopPropagation()"
+      />
+      <span class="node-icon device-icon">&#9899;</span>
+      <span class="node-name">{{ node.name }}</span>
+      <span class="node-value">{{ formatNodeValue(node) }}</span>
+      <span class="quality-badge" [style.background-color]="getQualityColor(node.quality)"
+            [title]="getQualityText(node.quality)"></span>
+      <button class="fav-btn" (click)="toggleFavorite(node, $event)"
+              [class.is-fav]="isFavorite(node.id)" title="Toggle favorite">
+        {{ isFavorite(node.id) ? '&#9733;' : '&#9734;' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Favorites Tab -->
+  <div class="results-container" *ngIf="activeTab === 'favorites'">
+    <div class="empty-state" *ngIf="favoriteNodes.length === 0">No favorites yet.</div>
+    <div
+      class="device-row"
+      *ngFor="let node of favoriteNodes; trackBy: trackByNodeId"
+      [class.selected]="node.selected"
+      (click)="onTagClick(node)"
+    >
+      <input
+        type="checkbox"
+        class="tag-checkbox"
+        [checked]="node.selected"
+        (change)="toggleSelection(node)"
+        (click)="$event.stopPropagation()"
+      />
+      <span class="node-icon device-icon">&#9899;</span>
+      <span class="node-name">{{ node.name }}</span>
+      <span class="node-value">{{ formatNodeValue(node) }}</span>
+      <span class="quality-badge" [style.background-color]="getQualityColor(node.quality)"
+            [title]="getQualityText(node.quality)"></span>
+      <button class="fav-btn is-fav" (click)="toggleFavorite(node, $event)" title="Remove favorite">&#9733;</button>
+    </div>
+  </div>
+
+  <!-- Recents Tab -->
+  <div class="results-container" *ngIf="activeTab === 'recents'">
+    <div class="empty-state" *ngIf="recentNodes.length === 0">No recent tags.</div>
+    <div
+      class="device-row"
+      *ngFor="let node of recentNodes; trackBy: trackByNodeId"
+      [class.selected]="node.selected"
+      (click)="onTagClick(node)"
+    >
+      <input
+        type="checkbox"
+        class="tag-checkbox"
+        [checked]="node.selected"
+        (change)="toggleSelection(node)"
+        (click)="$event.stopPropagation()"
+      />
+      <span class="node-icon device-icon">&#9899;</span>
+      <span class="node-name">{{ node.name }}</span>
+      <span class="node-value">{{ formatNodeValue(node) }}</span>
+      <span class="quality-badge" [style.background-color]="getQualityColor(node.quality)"
+            [title]="getQualityText(node.quality)"></span>
+      <button class="fav-btn" (click)="toggleFavorite(node, $event)"
+              [class.is-fav]="isFavorite(node.id)" title="Toggle favorite">
+        {{ isFavorite(node.id) ? '&#9733;' : '&#9734;' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Toolbar -->
+  <div class="toolbar">
+    <button class="toolbar-btn primary" [disabled]="selectedCount === 0" (click)="addToTrend()">
+      Add to Trend ({{ selectedCount }})
+    </button>
+    <button class="toolbar-btn" [disabled]="selectedCount === 0" (click)="clearSelection()">
+      Clear Selection
+    </button>
+  </div>
+</div>
+
+<!-- Recursive tree node template -->
+<ng-template #treeNodeTpl let-node>
+  <div class="tree-row"
+       [class.device-row]="node.entityType === 'DEVICE'"
+       [class.selected]="node.selected"
+       [style.padding-left]="getIndentPx(node.level)"
+       (click)="node.entityType === 'DEVICE' ? onTagClick(node) : toggleNode(node)"
+       (contextmenu)="onContextMenu($event, node)">
+
+    <!-- Expand/collapse for assets -->
+    <span class="expand-icon" *ngIf="node.entityType === 'ASSET'" (click)="toggleNode(node); $event.stopPropagation()">
+      <span *ngIf="node.loading">&#8987;</span>
+      <span *ngIf="!node.loading && !node.expanded">&#9654;</span>
+      <span *ngIf="!node.loading && node.expanded">&#9660;</span>
+    </span>
+
+    <!-- Checkbox for devices -->
+    <input
+      *ngIf="node.entityType === 'DEVICE'"
+      type="checkbox"
+      class="tag-checkbox"
+      [checked]="node.selected"
+      (change)="toggleSelection(node)"
+      (click)="$event.stopPropagation()"
+    />
+
+    <!-- Node icon -->
+    <span class="node-icon" [class.asset-icon]="node.entityType === 'ASSET'"
+          [class.device-icon]="node.entityType === 'DEVICE'">
+      {{ node.entityType === 'ASSET' ? '&#128193;' : '&#9899;' }}
+    </span>
+
+    <!-- Node name -->
+    <span class="node-name">{{ node.name }}</span>
+
+    <!-- Live value + quality (devices only) -->
+    <ng-container *ngIf="node.entityType === 'DEVICE'">
+      <span class="node-value">{{ formatNodeValue(node) }}</span>
+      <span class="quality-badge" [style.background-color]="getQualityColor(node.quality)"
+            [title]="getQualityText(node.quality)"></span>
+      <button class="fav-btn" (click)="toggleFavorite(node, $event)"
+              [class.is-fav]="isFavorite(node.id)" title="Toggle favorite">
+        {{ isFavorite(node.id) ? '&#9733;' : '&#9734;' }}
+      </button>
+    </ng-container>
+
+    <!-- Profile label -->
+    <span class="profile-label" *ngIf="node.entityType === 'ASSET' && node.profileName">
+      {{ node.profileName }}
+    </span>
+  </div>
+
+  <!-- Recursive children -->
+  <ng-container *ngIf="node.expanded">
+    <ng-container *ngFor="let child of node.children; trackBy: trackByNodeId">
+      <ng-container *ngTemplateOutlet="treeNodeTpl; context: { $implicit: child }"></ng-container>
+    </ng-container>
+    <div class="empty-children" *ngIf="node.children.length === 0 && !node.loading"
+         [style.padding-left]="getIndentPx(node.level + 1)">
+      (empty)
+    </div>
+  </ng-container>
+</ng-template>

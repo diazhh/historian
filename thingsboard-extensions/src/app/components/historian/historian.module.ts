@@ -1,57 +1,45 @@
+///
+/// Industrial Historian - Root Module
+///
+
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SharedModule } from '@shared/public-api';
-import { HomeComponentsModule } from '@home/components/public-api';
-import { AssetHierarchyModule } from './asset-hierarchy/asset-hierarchy.module';
-import { TagBrowserModule } from './tag-browser/tag-browser.module';
-import { TrendViewerModule } from './trend-viewer/trend-viewer.module';
-import { DataGridModule } from './data-grid/data-grid.module';
-import { TagSearchModule } from './tag-search/tag-search.module';
-import { TagConfigManagerModule } from './tag-config-manager/tag-config-manager.module';
-import { CalcEngineModule } from './calc-engine/calc-engine.module';
-import { StatisticalAnalysisModule } from './statistical-analysis/statistical-analysis.module';
-import { ComparisonViewModule } from './comparison-view/comparison-view.module';
-import { ReportGeneratorModule } from './report-generator/report-generator.module';
-import { AuditTrailModule } from './audit-trail/audit-trail.module';
-import { BatchAnalysisModule } from './batch-analysis/batch-analysis.module';
-import { TagMetadataService } from '../../shared/services/tag-metadata.service';
-import { TimeWeightedCalcService } from '../../shared/services/time-weighted.service';
+import { FormsModule } from '@angular/forms';
+import { TbApiService } from '../../shared/services/tb-api.service';
+import { BroadcastService } from '../../shared/services/broadcast.service';
+import { W1TrendViewerModule } from './w1-trend-viewer/w1-trend-viewer.module';
+import { W2TagBrowserModule } from './w2-tag-browser/w2-tag-browser.module';
+import { W3TagDetailModule } from './w3-tag-detail/w3-tag-detail.module';
+import { W4EventTimelineModule } from './w4-event-timeline/w4-event-timeline.module';
+import { W5AdhocQueryModule } from './w5-adhoc-query/w5-adhoc-query.module';
+import { W6BatchComparisonModule } from './w6-batch-comparison/w6-batch-comparison.module';
+import { W7TagConfigModule } from './w7-tag-config/w7-tag-config.module';
 
 @NgModule({
+  declarations: [],
   imports: [
     CommonModule,
-    SharedModule,
-    HomeComponentsModule,
-    AssetHierarchyModule,
-    TagBrowserModule,
-    TrendViewerModule,
-    DataGridModule,
-    TagSearchModule,
-    TagConfigManagerModule,
-    CalcEngineModule,
-    StatisticalAnalysisModule,
-    ComparisonViewModule,
-    ReportGeneratorModule,
-    AuditTrailModule,
-    BatchAnalysisModule
+    FormsModule,
+    W1TrendViewerModule,
+    W2TagBrowserModule,
+    W3TagDetailModule,
+    W4EventTimelineModule,
+    W5AdhocQueryModule,
+    W6BatchComparisonModule,
+    W7TagConfigModule
   ],
   exports: [
-    AssetHierarchyModule,
-    TagBrowserModule,
-    TrendViewerModule,
-    DataGridModule,
-    TagSearchModule,
-    TagConfigManagerModule,
-    CalcEngineModule,
-    StatisticalAnalysisModule,
-    ComparisonViewModule,
-    ReportGeneratorModule,
-    AuditTrailModule,
-    BatchAnalysisModule
+    W1TrendViewerModule,
+    W2TagBrowserModule,
+    W3TagDetailModule,
+    W4EventTimelineModule,
+    W5AdhocQueryModule,
+    W6BatchComparisonModule,
+    W7TagConfigModule
   ],
   providers: [
-    TagMetadataService,
-    TimeWeightedCalcService
+    TbApiService,
+    BroadcastService
   ]
 })
 export class HistorianModule {}

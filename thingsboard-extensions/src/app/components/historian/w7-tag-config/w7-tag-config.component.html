@@ -1,0 +1,161 @@
+<div class="tag-config-container">
+
+  <!-- Header -->
+  <div class="config-header" *ngIf="hasTag">
+    <h3 class="tag-title">{{ deviceName }}</h3>
+    <span class="tag-id">{{ deviceId }}</span>
+  </div>
+
+  <!-- Form -->
+  <div class="config-form" *ngIf="hasTag && !loading">
+
+    <!-- General section -->
+    <div class="form-section">
+      <div class="section-title">General</div>
+
+      <div class="field-row">
+        <label>Description</label>
+        <input type="text"
+               [(ngModel)]="attrs.ss_description"
+               (ngModelChange)="onFieldChange()"
+               placeholder="Tag description" />
+      </div>
+
+      <div class="field-row">
+        <label>Eng. Units</label>
+        <input type="text"
+               [(ngModel)]="attrs.ss_engUnits"
+               (ngModelChange)="onFieldChange()"
+               placeholder="e.g. °C, psi, m³/h" />
+      </div>
+
+      <div class="field-row">
+        <label>Scan Rate</label>
+        <input type="text"
+               [(ngModel)]="attrs.ss_scanRate"
+               (ngModelChange)="onFieldChange()"
+               placeholder="e.g. 1s, 5s" />
+      </div>
+
+      <div class="field-row">
+        <label>Instrument Type</label>
+        <input type="text"
+               [(ngModel)]="attrs.ss_instrumentType"
+               (ngModelChange)="onFieldChange()"
+               placeholder="e.g. TT, PT, FT" />
+      </div>
+    </div>
+
+    <!-- Range & Setpoint section -->
+    <div class="form-section">
+      <div class="section-title">Range &amp; Setpoint</div>
+
+      <div class="field-row">
+        <label>Range Low</label>
+        <input type="number"
+               [(ngModel)]="attrs.ss_rangeLow"
+               (ngModelChange)="onFieldChange()"
+               [class.field-error]="errors.ss_rangeLow" />
+      </div>
+
+      <div class="field-row">
+        <label>Range High</label>
+        <input type="number"
+               [(ngModel)]="attrs.ss_rangeHigh"
+               (ngModelChange)="onFieldChange()"
+               [class.field-error]="errors.ss_rangeHigh" />
+      </div>
+
+      <div class="field-row">
+        <label>Setpoint</label>
+        <input type="number"
+               [(ngModel)]="attrs.ss_setpoint"
+               (ngModelChange)="onFieldChange()"
+               [class.field-error]="errors.ss_setpoint" />
+      </div>
+
+      <div class="field-row">
+        <label>Deadband</label>
+        <input type="number"
+               [(ngModel)]="attrs.ss_deadband"
+               (ngModelChange)="onFieldChange()" />
+      </div>
+    </div>
+
+    <!-- Alarm limits section -->
+    <div class="form-section">
+      <div class="section-title">Alarm Limits</div>
+      <div class="alarm-hint">
+        Expected order: Range Low &lt; LL &lt; L &lt; Setpoint &lt; H &lt; HH &lt; Range High
+      </div>
+
+      <div class="field-row">
+        <label class="alarm-label alarm-hh">HH</label>
+        <input type="number"
+               [(ngModel)]="attrs.ss_alarmHH"
+               (ngModelChange)="onFieldChange()"
+               [class.field-error]="errors.ss_alarmHH" />
+      </div>
+
+      <div class="field-row">
+        <label class="alarm-label alarm-h">H</label>
+        <input type="number"
+               [(ngModel)]="attrs.ss_alarmH"
+               (ngModelChange)="onFieldChange()"
+               [class.field-error]="errors.ss_alarmH" />
+      </div>
+
+      <div class="field-row">
+        <label class="alarm-label alarm-l">L</label>
+        <input type="number"
+               [(ngModel)]="attrs.ss_alarmL"
+               (ngModelChange)="onFieldChange()"
+               [class.field-error]="errors.ss_alarmL" />
+      </div>
+
+      <div class="field-row">
+        <label class="alarm-label alarm-ll">LL</label>
+        <input type="number"
+               [(ngModel)]="attrs.ss_alarmLL"
+               (ngModelChange)="onFieldChange()"
+               [class.field-error]="errors.ss_alarmLL" />
+      </div>
+    </div>
+
+    <!-- Validation warning -->
+    <div class="validation-warning" *ngIf="hasValidationErrors">
+      Alarm/range ordering violation — fields with red borders violate the expected order.
+    </div>
+
+    <!-- Actions -->
+    <div class="form-actions">
+      <button class="save-btn"
+              [disabled]="saving || hasValidationErrors"
+              (click)="save()">
+        {{ saving ? 'Saving...' : 'Save' }}
+      </button>
+      <button class="reset-btn" (click)="reset()" [disabled]="saving">
+        Reset
+      </button>
+    </div>
+
+    <!-- Message -->
+    <div class="message"
+         *ngIf="message"
+         [class.message-success]="messageType === 'success'"
+         [class.message-error]="messageType === 'error'">
+      {{ message }}
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" *ngIf="!hasTag && !loading">
+    <p>Double-click a tag to view its configuration</p>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-overlay" *ngIf="loading">
+    <div class="spinner"></div>
+  </div>
+
+</div>

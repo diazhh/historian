@@ -1,0 +1,36 @@
+<div class="event-timeline-container">
+
+  <!-- Chart -->
+  <div class="chart-area" #chartContainer></div>
+
+  <!-- Summary bar -->
+  <div class="summary-bar" *ngIf="selectedDeviceIds.length > 0 && !loading">
+    <span class="summary-total">Total: <b>{{ totalAlarms }}</b></span>
+    <span class="summary-severity critical" *ngIf="countBySeverity.CRITICAL > 0">
+      CRITICAL: {{ countBySeverity.CRITICAL }}
+    </span>
+    <span class="summary-severity major" *ngIf="countBySeverity.MAJOR > 0">
+      MAJOR: {{ countBySeverity.MAJOR }}
+    </span>
+    <span class="summary-severity minor" *ngIf="countBySeverity.MINOR > 0">
+      MINOR: {{ countBySeverity.MINOR }}
+    </span>
+    <span class="summary-severity warning" *ngIf="countBySeverity.WARNING > 0">
+      WARNING: {{ countBySeverity.WARNING }}
+    </span>
+    <span class="summary-avg" *ngIf="totalAlarms > 0">
+      Avg duration: <b>{{ avgDurationLabel }}</b>
+    </span>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" *ngIf="selectedDeviceIds.length === 0 && !loading">
+    <p>Select tags from the Tag Browser to view alarm events</p>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" *ngIf="loading">
+    <div class="spinner"></div>
+  </div>
+
+</div>

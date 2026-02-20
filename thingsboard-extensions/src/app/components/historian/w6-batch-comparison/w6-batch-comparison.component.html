@@ -1,0 +1,117 @@
+<div class="batch-comparison-container">
+
+  <!-- Form -->
+  <div class="comparison-form">
+    <div class="form-row tag-row">
+      <label>Tag:</label>
+      <span class="tag-name" *ngIf="tagName">{{ tagName }}</span>
+      <span class="tag-placeholder" *ngIf="!tagName">Select a tag from Tag Browser</span>
+    </div>
+
+    <div class="form-row presets-row">
+      <label>Preset:</label>
+      <button *ngFor="let p of presets"
+              class="preset-btn"
+              [class.active]="activePreset === p.key"
+              (click)="applyPreset(p)">
+        {{ p.label }}
+      </button>
+      <button class="preset-btn"
+              [class.active]="activePreset === 'custom'"
+              (click)="activePreset = 'custom'">
+        Custom
+      </button>
+    </div>
+
+    <div class="form-row periods-row">
+      <div class="period-group">
+        <span class="period-label period-a-label">Period A</span>
+        <input type="datetime-local"
+               [(ngModel)]="periodAStartStr"
+               (change)="onPeriodInputChange()" />
+        <span class="period-sep">to</span>
+        <input type="datetime-local"
+               [(ngModel)]="periodAEndStr"
+               (change)="onPeriodInputChange()" />
+      </div>
+      <div class="period-group">
+        <span class="period-label period-b-label">Period B</span>
+        <input type="datetime-local"
+               [(ngModel)]="periodBStartStr"
+               (change)="onPeriodInputChange()" />
+        <span class="period-sep">to</span>
+        <input type="datetime-local"
+               [(ngModel)]="periodBEndStr"
+               (change)="onPeriodInputChange()" />
+      </div>
+    </div>
+
+    <div class="form-row action-row">
+      <button class="compare-btn"
+              [disabled]="!deviceId || loading"
+              (click)="runComparison()">
+        Compare
+      </button>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-container" #chartContainer></div>
+
+  <!-- Statistics comparison table -->
+  <div class="stats-table-container" *ngIf="hasData">
+    <table class="stats-table">
+      <thead>
+        <tr>
+          <th>Statistic</th>
+          <th class="col-a">Period A</th>
+          <th class="col-b">Period B</th>
+          <th class="col-delta">Delta (A-B)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Min</td>
+          <td class="col-a">{{ formatNum(statsA.min) }}</td>
+          <td class="col-b">{{ formatNum(statsB.min) }}</td>
+          <td class="col-delta">{{ formatDelta(statsA.min, statsB.min) }}</td>
+        </tr>
+        <tr>
+          <td>Max</td>
+          <td class="col-a">{{ formatNum(statsA.max) }}</td>
+          <td class="col-b">{{ formatNum(statsB.max) }}</td>
+          <td class="col-delta">{{ formatDelta(statsA.max, statsB.max) }}</td>
+        </tr>
+        <tr>
+          <td>Avg</td>
+          <td class="col-a">{{ formatNum(statsA.avg) }}</td>
+          <td class="col-b">{{ formatNum(statsB.avg) }}</td>
+          <td class="col-delta">{{ formatDelta(statsA.avg, statsB.avg) }}</td>
+        </tr>
+        <tr>
+          <td>StdDev</td>
+          <td class="col-a">{{ formatNum(statsA.stdDev) }}</td>
+          <td class="col-b">{{ formatNum(statsB.stdDev) }}</td>
+          <td class="col-delta">{{ formatDelta(statsA.stdDev, statsB.stdDev) }}</td>
+        </tr>
+        <tr>
+          <td>Points</td>
+          <td class="col-a">{{ statsA.count }}</td>
+          <td class="col-b">{{ statsB.count }}</td>
+          <td class="col-delta">{{ statsA.count - statsB.count }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" *ngIf="!hasData && !loading">
+    <p>Select a tag and time periods, then click Compare</p>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" *ngIf="loading">
+    <div class="spinner"></div>
+  </div>
+
+</div>

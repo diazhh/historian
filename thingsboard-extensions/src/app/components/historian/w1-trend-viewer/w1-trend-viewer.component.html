@@ -1,0 +1,62 @@
+<div class="trend-viewer-container">
+
+  <!-- Toolbar -->
+  <div class="trend-toolbar" *ngIf="settings.showToolbar">
+    <div class="toolbar-left">
+      <button *ngFor="let p of timePresets"
+              class="preset-btn"
+              [class.active]="activePreset === p.ms"
+              (click)="setTimePreset(p.ms)">
+        {{ p.label }}
+      </button>
+    </div>
+
+    <div class="toolbar-center">
+      <span class="time-range-label">{{ timeRangeLabel }}</span>
+    </div>
+
+    <div class="toolbar-right">
+      <button class="live-btn" [class.active]="isLive" (click)="toggleLive()">
+        <span class="live-dot" *ngIf="isLive"></span>
+        LIVE
+      </button>
+      <button class="tool-btn" (click)="exportCSV()" title="Export CSV"
+              *ngIf="settings.exportEnabled && pens.length > 0">CSV</button>
+      <button class="tool-btn" (click)="exportPNG()" title="Export PNG"
+              *ngIf="settings.exportEnabled && pens.length > 0">PNG</button>
+      <button class="tool-btn" (click)="resetZoom()" title="Reset Zoom"
+              *ngIf="pens.length > 0">&#8634;</button>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-container" #chartContainer></div>
+
+  <!-- Legend -->
+  <div class="trend-legend" *ngIf="settings.showLegend && pens.length > 0">
+    <div class="legend-row"
+         *ngFor="let pen of pens"
+         [class.hidden-pen]="!pen.visible"
+         (click)="togglePenVisibility(pen)"
+         (dblclick)="onPenDoubleClick($event, pen)">
+      <span class="legend-color" [style.background-color]="pen.color"></span>
+      <span class="legend-name" [title]="pen.deviceName">{{ pen.deviceName }}</span>
+      <span class="legend-units">({{ pen.engUnits || '?' }})</span>
+      <span class="legend-value">{{ formatNum(pen.stats.current) }}</span>
+      <span class="legend-stat">L: {{ formatNum(pen.stats.min) }}</span>
+      <span class="legend-stat">H: {{ formatNum(pen.stats.max) }}</span>
+      <span class="legend-stat">Avg: {{ formatNum(pen.stats.avg) }}</span>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" *ngIf="pens.length === 0 && !loading">
+    <p>Select tags from the Tag Browser to view trends</p>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" *ngIf="loading">
+    <div class="spinner"></div>
+  </div>
+
+</div>

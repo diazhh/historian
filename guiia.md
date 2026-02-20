@@ -1,3 +1,10 @@
+> ⚠️ **LEGACY** — Este archivo ha sido migrado a `docs/07-implementacion/`. La documentación canónica está en:
+> - [docs/07-implementacion/entorno-desarrollo.md](./docs/07-implementacion/entorno-desarrollo.md)
+> - [docs/07-implementacion/arquitectura-widgets.md](./docs/07-implementacion/arquitectura-widgets.md)
+> - [docs/07-implementacion/build-deploy.md](./docs/07-implementacion/build-deploy.md)
+> - [docs/07-implementacion/dashboard-api.md](./docs/07-implementacion/dashboard-api.md)
+> - [docs/07-implementacion/troubleshooting.md](./docs/07-implementacion/troubleshooting.md)
+
 # Guía de Implementación — Historiador ThingsBoard PE
 
 **Para**: Desarrolladores de widgets con `thingsboard/thingsboard-extensions`

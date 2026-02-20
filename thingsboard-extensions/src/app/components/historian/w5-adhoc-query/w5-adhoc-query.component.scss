@@ -1,0 +1,327 @@
+///
+/// W5 Ad-hoc Query - Styles
+///
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #333;
+}
+
+// ── Query Form ──────────────────────────────────────
+
+.query-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  align-items: flex-end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+
+  label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #757575;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  input, select {
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+    background: #fff;
+    outline: none;
+
+    &:focus {
+      border-color: #1976d2;
+    }
+
+    &:disabled {
+      background: #eee;
+      color: #999;
+    }
+  }
+}
+
+.form-group--tag {
+  flex: 1 1 180px;
+  min-width: 180px;
+}
+
+.form-group--time {
+  input {
+    width: 175px;
+  }
+}
+
+.form-group--agg select,
+.form-group--interval select {
+  width: 100px;
+}
+
+.btn-execute {
+  height: 30px;
+  padding: 0 16px;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: #1565c0;
+  }
+
+  &:disabled {
+    background: #bbb;
+    cursor: not-allowed;
+  }
+}
+
+// ── Tag Search Dropdown ─────────────────────────────
+
+.tag-search-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.tag-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.tag-search-item {
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:hover {
+    background: #e3f2fd;
+  }
+
+  .tag-name {
+    font-weight: 500;
+  }
+
+  .tag-label {
+    color: #999;
+    font-size: 11px;
+    margin-left: 6px;
+  }
+}
+
+// ── Results Area ────────────────────────────────────
+
+.results-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.results-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.view-btn {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  color: #555;
+
+  &:hover {
+    background: #f5f5f5;
+  }
+
+  &.active {
+    background: #1976d2;
+    color: #fff;
+    border-color: #1976d2;
+  }
+}
+
+.results-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: #888;
+}
+
+.btn-csv {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #4caf50;
+  border-radius: 3px;
+  background: #fff;
+  font-size: 11px;
+  color: #4caf50;
+  cursor: pointer;
+
+  &:hover {
+    background: #e8f5e9;
+  }
+}
+
+// ── Table View ──────────────────────────────────────
+
+.table-container {
+  flex: 1;
+  overflow: auto;
+  padding: 0 12px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th {
+    position: sticky;
+    top: 0;
+    background: #f5f5f5;
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 2px solid #ddd;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 4px 10px;
+    border-bottom: 1px solid #eee;
+    white-space: nowrap;
+  }
+
+  tr:nth-child(even) td {
+    background: #fafafa;
+  }
+
+  tr:hover td {
+    background: #e3f2fd;
+  }
+}
+
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 12px;
+
+  button {
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: #f5f5f5;
+    }
+
+    &:disabled {
+      color: #ccc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ── Chart View ──────────────────────────────────────
+
+.chart-container {
+  flex: 1;
+  min-height: 200px;
+}
+
+// ── Stats View ──────────────────────────────────────
+
+.stats-container {
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stat-card {
+  flex: 1 1 120px;
+  min-width: 120px;
+  padding: 10px 14px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+
+  .stat-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #757575;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+  }
+}
+
+// ── Loading & Empty ─────────────────────────────────
+
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #888;
+  font-size: 13px;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #aaa;
+  font-size: 13px;
+}

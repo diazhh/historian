@@ -1,0 +1,145 @@
+<!--
+  Industrial Historian - W3 Tag Detail Panel Template
+-->
+
+<div class="tag-detail-panel" *ngIf="!selectedDeviceId">
+  <div class="empty-state">
+    <span class="material-icons">info_outline</span>
+    <p>Select a tag to view details</p>
+  </div>
+</div>
+
+<div class="tag-detail-panel" *ngIf="selectedDeviceId">
+  <!-- Loading overlay -->
+  <div class="loading-overlay" *ngIf="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Header Section -->
+  <div class="header-section">
+    <div class="tag-name">{{ selectedDeviceName }}</div>
+    <div class="tag-description" *ngIf="tagConfig?.description">
+      {{ tagConfig.description }}
+    </div>
+    <div class="live-value" [style.color]="pvColor">
+      {{ currentPV != null ? currentPV.toFixed(2) : '---' }}
+      <span class="eng-units" *ngIf="tagConfig">{{ tagConfig.engUnits }}</span>
+    </div>
+    <div class="quality-row">
+      <span class="quality-badge"
+            [style.background-color]="qualityColor(currentQuality)">
+        {{ qualityToText(currentQuality) }}
+      </span>
+      <span class="last-update" *ngIf="lastUpdateTs">
+        {{ formatTimestamp(lastUpdateTs, 'time') }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Gauge Section (analog tags only) -->
+  <div class="gauge-section" *ngIf="isAnalog && tagConfig">
+    <div class="section-header">Gauge</div>
+    <div #gaugeContainer class="gauge-container"></div>
+  </div>
+
+  <!-- Sparkline Section -->
+  <div class="sparkline-section" *ngIf="tagConfig">
+    <div class="section-header">Last 1 Hour</div>
+    <div #sparklineContainer class="sparkline-container"></div>
+  </div>
+
+  <!-- Alarm Limits Section -->
+  <div class="alarm-limits-section" *ngIf="tagConfig && isAnalog">
+    <div class="section-header">Alarm Limits</div>
+    <div class="limits-grid">
+      <div class="limit-item hh">
+        <span class="limit-label">HH</span>
+        <span class="limit-value">{{ alarmLimits.hh != null ? alarmLimits.hh : '---' }}</span>
+      </div>
+      <div class="limit-item h">
+        <span class="limit-label">H</span>
+        <span class="limit-value">{{ alarmLimits.h != null ? alarmLimits.h : '---' }}</span>
+      </div>
+      <div class="limit-item l">
+        <span class="limit-label">L</span>
+        <span class="limit-value">{{ alarmLimits.l != null ? alarmLimits.l : '---' }}</span>
+      </div>
+      <div class="limit-item ll">
+        <span class="limit-label">LL</span>
+        <span class="limit-value">{{ alarmLimits.ll != null ? alarmLimits.ll : '---' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics Section (24h) -->
+  <div class="statistics-section" *ngIf="statistics">
+    <div class="section-header">24h Statistics</div>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-label">Min</span>
+        <span class="stat-value">{{ statistics.min.toFixed(2) }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Max</span>
+        <span class="stat-value">{{ statistics.max.toFixed(2) }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Avg</span>
+        <span class="stat-value">{{ statistics.avg.toFixed(2) }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">StdDev</span>
+        <span class="stat-value">{{ statistics.stdDev.toFixed(2) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attributes Table -->
+  <div class="attributes-section" *ngIf="attributes.length">
+    <div class="section-header">Attributes</div>
+    <table class="attributes-table">
+      <tbody>
+        <tr *ngFor="let attr of attributes">
+          <td class="attr-label">{{ attr.label }}</td>
+          <td class="attr-value">{{ attr.value }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Recent Alarms -->
+  <div class="alarms-section" *ngIf="recentAlarms.length">
+    <div class="section-header">Recent Alarms</div>
+    <table class="alarms-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Type</th>
+          <th>Severity</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let alarm of recentAlarms">
+          <td>{{ formatTimestamp(alarm.startTs, 'time') }}</td>
+          <td>{{ alarm.type }}</td>
+          <td>
+            <span class="severity-badge"
+                  [style.background-color]="severityColor(alarm.severity)">
+              {{ alarm.severity }}
+            </span>
+          </td>
+          <td>{{ alarm.status }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="actions-section" *ngIf="tagConfig">
+    <button class="action-btn" (click)="addToTrend()">
+      <span class="material-icons">show_chart</span>
+      Add to Trend
+    </button>
+  </div>
+</div>

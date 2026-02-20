@@ -1,0 +1,216 @@
+///
+/// W6 Batch Comparison - Styles
+///
+
+:host {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  font-family: 'Roboto', sans-serif;
+}
+
+.batch-comparison-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+// ── Form ────────────────────────────────────────────────
+
+.comparison-form {
+  padding: 8px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+
+  &:last-child { margin-bottom: 0; }
+
+  label {
+    font-weight: 500;
+    min-width: 48px;
+    color: #555;
+  }
+}
+
+.tag-name {
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.tag-placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+// ── Presets ──────────────────────────────────────────────
+
+.preset-btn {
+  padding: 2px 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 20px;
+
+  &:hover { background: #e8e8e8; }
+  &.active {
+    background: #1976d2;
+    color: #fff;
+    border-color: #1976d2;
+  }
+}
+
+// ── Period inputs ────────────────────────────────────────
+
+.periods-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.period-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.period-label {
+  font-weight: 600;
+  font-size: 11px;
+  min-width: 56px;
+}
+
+.period-a-label { color: #1976d2; }
+.period-b-label { color: #f57c00; }
+
+.period-sep {
+  color: #999;
+  font-size: 11px;
+}
+
+input[type="datetime-local"] {
+  padding: 2px 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+
+  &:focus { border-color: #1976d2; }
+}
+
+// ── Compare button ───────────────────────────────────────
+
+.compare-btn {
+  padding: 4px 20px;
+  border: none;
+  background: #1976d2;
+  color: #fff;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+
+  &:hover { background: #1565c0; }
+  &:disabled {
+    background: #bdbdbd;
+    cursor: not-allowed;
+  }
+}
+
+// ── Chart ────────────────────────────────────────────────
+
+.chart-container {
+  flex: 1;
+  min-height: 180px;
+  width: 100%;
+}
+
+// ── Statistics table ─────────────────────────────────────
+
+.stats-table-container {
+  flex-shrink: 0;
+  padding: 4px 8px 8px;
+  background: #fafafa;
+  border-top: 1px solid #e0e0e0;
+  overflow-x: auto;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+
+  th, td {
+    padding: 3px 8px;
+    text-align: right;
+    border-bottom: 1px solid #eee;
+  }
+
+  th {
+    font-weight: 600;
+    color: #555;
+    background: #f5f5f5;
+  }
+
+  th:first-child,
+  td:first-child {
+    text-align: left;
+    font-weight: 500;
+  }
+
+  .col-a { color: #1976d2; }
+  .col-b { color: #f57c00; }
+  .col-delta { color: #333; font-weight: 500; }
+}
+
+// ── Empty state ──────────────────────────────────────────
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #999;
+  font-size: 14px;
+}
+
+// ── Loading overlay ──────────────────────────────────────
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #1976d2;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

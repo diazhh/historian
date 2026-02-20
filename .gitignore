@@ -30,3 +30,14 @@ target/
 tmp/
 temp/
 *.tmp
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Secrets/tokens
+tokens.json
+*.secret
+
+# Claude context files
+CLAUDE.md

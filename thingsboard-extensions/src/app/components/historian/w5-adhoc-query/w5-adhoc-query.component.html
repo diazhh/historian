@@ -1,0 +1,154 @@
+<!-- W5 Ad-hoc Query - Template -->
+
+<!-- Query Form -->
+<div class="query-form">
+  <!-- Tag search -->
+  <div class="form-group form-group--tag">
+    <label>Tag / Device</label>
+    <div class="tag-search-wrapper">
+      <input type="text"
+             [(ngModel)]="queryForm.deviceName"
+             (input)="onSearchInput($event)"
+             (focus)="showDropdown = searchResults.length > 0"
+             placeholder="Search tag name..." />
+      <div class="tag-search-results" *ngIf="showDropdown && searchResults.length > 0">
+        <div class="tag-search-item"
+             *ngFor="let device of searchResults"
+             (mousedown)="selectDevice(device)">
+          <span class="tag-name">{{ device.name }}</span>
+          <span class="tag-label" *ngIf="device.label">{{ device.label }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start time -->
+  <div class="form-group form-group--time">
+    <label>Start</label>
+    <input type="datetime-local"
+           [value]="startDateStr"
+           (change)="onStartChange($event)" />
+  </div>
+
+  <!-- End time -->
+  <div class="form-group form-group--time">
+    <label>End</label>
+    <input type="datetime-local"
+           [value]="endDateStr"
+           (change)="onEndChange($event)" />
+  </div>
+
+  <!-- Aggregation -->
+  <div class="form-group form-group--agg">
+    <label>Aggregation</label>
+    <select [(ngModel)]="queryForm.agg" (ngModelChange)="onAggChange()">
+      <option value="NONE">NONE</option>
+      <option value="AVG">AVG</option>
+      <option value="MIN">MIN</option>
+      <option value="MAX">MAX</option>
+      <option value="SUM">SUM</option>
+      <option value="COUNT">COUNT</option>
+    </select>
+  </div>
+
+  <!-- Interval -->
+  <div class="form-group form-group--interval">
+    <label>Interval</label>
+    <select [(ngModel)]="queryForm.interval" [disabled]="queryForm.agg === 'NONE'">
+      <option *ngFor="let opt of intervalOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+    </select>
+  </div>
+
+  <!-- Execute -->
+  <button class="btn-execute"
+          [disabled]="!queryForm.deviceId || loading"
+          (click)="executeQuery()">
+    {{ loading ? 'Loading...' : 'Execute' }}
+  </button>
+</div>
+
+<!-- Results Area -->
+<div class="results-area" *ngIf="queryResults.length > 0 || loading">
+  <!-- Toolbar -->
+  <div class="results-toolbar">
+    <button class="view-btn" [class.active]="viewMode === 'table'" (click)="viewMode = 'table'">Table</button>
+    <button class="view-btn" [class.active]="viewMode === 'chart'" (click)="setViewMode('chart')">Chart</button>
+    <button class="view-btn" [class.active]="viewMode === 'stats'" (click)="viewMode = 'stats'">Stats</button>
+    <span class="results-meta">{{ queryResults.length }} points</span>
+    <button class="btn-csv" (click)="exportCSV()" [disabled]="queryResults.length === 0">Export CSV</button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-overlay" *ngIf="loading">Querying data...</div>
+
+  <!-- Table View -->
+  <ng-container *ngIf="!loading && viewMode === 'table'">
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Timestamp</th>
+            <th>Value (PV)</th>
+            <th>Quality</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let dp of pagedResults; let i = index">
+            <td>{{ tablePage * tablePageSize + i + 1 }}</td>
+            <td>{{ formatTs(dp.ts) }}</td>
+            <td>{{ formatNum(dp.value) }}</td>
+            <td>{{ qualityText(dp.quality) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-pagination">
+      <button [disabled]="tablePage === 0" (click)="tablePage = tablePage - 1">Prev</button>
+      <span>Page {{ tablePage + 1 }} / {{ totalPages }}</span>
+      <button [disabled]="tablePage >= totalPages - 1" (click)="tablePage = tablePage + 1">Next</button>
+    </div>
+  </ng-container>
+
+  <!-- Chart View -->
+  <div class="chart-container"
+       *ngIf="!loading && viewMode === 'chart'"
+       #chartContainer></div>
+
+  <!-- Stats View -->
+  <div class="stats-container" *ngIf="!loading && viewMode === 'stats'">
+    <div class="stat-card">
+      <div class="stat-label">Count</div>
+      <div class="stat-value">{{ queryResults.length }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Min</div>
+      <div class="stat-value">{{ formatNum(stats.min) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Max</div>
+      <div class="stat-value">{{ formatNum(stats.max) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg (Time-Weighted)</div>
+      <div class="stat-value">{{ formatNum(stats.avg) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Std Dev (Time-Weighted)</div>
+      <div class="stat-value">{{ formatNum(stats.stdDev) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">First Value</div>
+      <div class="stat-value">{{ formatNum(stats.first) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last Value</div>
+      <div class="stat-value">{{ formatNum(stats.last) }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Empty state -->
+<div class="empty-state" *ngIf="!loading && queryResults.length === 0">
+  Select a tag and time range, then click Execute to query data.
+</div>
