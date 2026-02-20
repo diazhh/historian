@@ -64,7 +64,7 @@ log = logging.getLogger("mqtt_simulator")
 # ---------------------------------------------------------------------------
 MQTT_TOPIC = "v1/devices/me/telemetry"
 DEFAULT_SERVER = "panel.atilax.io"
-DEFAULT_MQTT_HOST = "144.126.150.120"
+DEFAULT_MQTT_HOST = "127.0.0.1"
 DEFAULT_MQTT_PORT = 1883
 DEFAULT_SCAN_RATE = 1  # seconds
 DEFAULT_TOKENS_FILE = "tokens.json"
