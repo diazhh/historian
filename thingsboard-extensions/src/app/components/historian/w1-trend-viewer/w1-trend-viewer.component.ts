@@ -96,7 +96,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
       this.settings = { ...DEFAULT_SETTINGS, ...this.ctx.settings };
     }
     this.activePreset = this.settings.defaultTimeRangeMs;
-    this.panelIndices = Array.from({ length: Math.max(1, this.settings.panelCount) }, (_, i) => i);
+    this.panelIndices = Array.from({ length: Math.max(1, this.settings.panelCount || 1) }, (_, i) => i);
 
     // Widget bridge for TB controllerScript
     this.ctx.$scope.historianWidget = {
@@ -135,11 +135,11 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
     this.stopLiveTimer();
     if (this.zoomDebounce) clearTimeout(this.zoomDebounce);
     this.resizeObserver?.disconnect();
-    for (const chart of this.charts) {
-      chart.dispose();
-    }
     if (this.charts.length > 1) {
       echarts.disconnect(this.groupId);
+    }
+    for (const chart of this.charts) {
+      chart.dispose();
     }
     this.charts = [];
   }
@@ -468,9 +468,14 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
         }
       }
 
-      // Alarm overlay markArea — attach to first series in this panel
-      if (this.settings.showAlarmOverlays && idx === 0 && pen.alarms.length > 0) {
-        s.markArea = this.buildAlarmOverlay(pen.alarms);
+      // Alarm overlay markArea — collect all panel alarms on first series
+      if (this.settings.showAlarmOverlays && idx === 0) {
+        const allPanelAlarms = panelPens.reduce<HistorianAlarm[]>(
+          (acc, p) => acc.concat(p.alarms), []
+        );
+        if (allPanelAlarms.length > 0) {
+          s.markArea = this.buildAlarmOverlay(allPanelAlarms);
+        }
       }
 
       return s;
