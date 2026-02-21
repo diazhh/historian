@@ -113,12 +113,24 @@
   &:hover { background: #e8e8e8; }
 }
 
-// ── Chart ────────────────────────────────────────────────
+// ── Panels container (stacked chart panels) ──────────────
 
-.chart-container {
+.panels-container {
+  display: flex;
+  flex-direction: column;
   flex: 1;
-  min-height: 200px;
+  min-height: 0;
   width: 100%;
+}
+
+.chart-panel {
+  flex: 1;
+  min-height: 120px;
+  width: 100%;
+
+  & + .chart-panel {
+    border-top: 1px solid #e0e0e0;
+  }
 }
 
 // ── Legend ────────────────────────────────────────────────

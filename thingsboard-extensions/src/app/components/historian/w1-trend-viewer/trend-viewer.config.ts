@@ -12,6 +12,7 @@ export interface TrendViewerSettings {
   showLegend: boolean;
   showToolbar: boolean;
   exportEnabled: boolean;
+  panelCount: number;
 }
 
 export const DEFAULT_SETTINGS: TrendViewerSettings = {
@@ -23,7 +24,8 @@ export const DEFAULT_SETTINGS: TrendViewerSettings = {
   showQualityBands: false,
   showLegend: true,
   showToolbar: true,
-  exportEnabled: true
+  exportEnabled: true,
+  panelCount: 1
 };
 
 export const PEN_COLORS: string[] = [

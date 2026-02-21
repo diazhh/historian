@@ -2,28 +2,29 @@
 /// Industrial Historian - W1 Industrial Trend Viewer Component
 ///
 /// Multi-pen time-series chart replicating PI Vision trend functionality.
-/// Features: adaptive aggregation, paginated data fetch, alarm overlays,
+/// Features: multi-panel with echarts.connect(), adaptive aggregation,
+/// progressive loading on zoom, paginated data fetch, alarm overlays,
 /// real-time streaming, zoom/pan, crosshair, CSV/PNG export.
 ///
 
 import {
   Component, Input, OnInit, OnDestroy,
-  ViewChild, ElementRef, ChangeDetectorRef
+  ViewChildren, QueryList, ElementRef, ChangeDetectorRef
 } from '@angular/core';
-import { Subscription, firstValueFrom, forkJoin } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 import * as echarts from 'echarts';
 
 import { TbApiService } from '../../../shared/services/tb-api.service';
 import { BroadcastService } from '../../../shared/services/broadcast.service';
 import {
-  TagDataPoint, AlarmLimits, qualityToText
+  TagDataPoint, AlarmLimits
 } from '../../../shared/models/tag.model';
 import { HistorianAlarm, AlarmSeverity } from '../../../shared/models/alarm.model';
 import {
   timeWeightedAverage, timeWeightedMin, timeWeightedMax
 } from '../../../shared/utils/time.util';
 import {
-  formatTimestamp, severityColor, qualityColor
+  formatTimestamp, severityColor
 } from '../../../shared/utils/format.util';
 import {
   TrendViewerSettings, DEFAULT_SETTINGS, PEN_COLORS, TIME_PRESETS,
@@ -38,6 +39,7 @@ interface PenConfig {
   color: string;
   engUnits: string;
   yAxisIndex: number;
+  panelIndex: number;
   alarmLimits: AlarmLimits;
   visible: boolean;
   data: TagDataPoint[];
@@ -57,7 +59,7 @@ const PV_KEY = 'PV';
 })
 export class W1TrendViewerComponent implements OnInit, OnDestroy {
   @Input() ctx: any;
-  @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
+  @ViewChildren('chartPanel') chartPanels!: QueryList<ElementRef>;
 
   // Public state (template bindings)
   settings: TrendViewerSettings = { ...DEFAULT_SETTINGS };
@@ -68,9 +70,11 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
   timeRange = { startTs: 0, endTs: 0 };
   timeRangeLabel = '';
   timePresets = TIME_PRESETS;
+  panelIndices: number[] = [0];
 
   // Private state
-  private chart: echarts.ECharts | null = null;
+  private charts: echarts.ECharts[] = [];
+  private groupId = `historian-trend-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   private resizeObserver: ResizeObserver | null = null;
   private liveTimer: ReturnType<typeof setInterval> | null = null;
   private zoomDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -92,6 +96,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
       this.settings = { ...DEFAULT_SETTINGS, ...this.ctx.settings };
     }
     this.activePreset = this.settings.defaultTimeRangeMs;
+    this.panelIndices = Array.from({ length: Math.max(1, this.settings.panelCount) }, (_, i) => i);
 
     // Widget bridge for TB controllerScript
     this.ctx.$scope.historianWidget = {
@@ -130,27 +135,54 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
     this.stopLiveTimer();
     if (this.zoomDebounce) clearTimeout(this.zoomDebounce);
     this.resizeObserver?.disconnect();
-    this.chart?.dispose();
+    for (const chart of this.charts) {
+      chart.dispose();
+    }
+    if (this.charts.length > 1) {
+      echarts.disconnect(this.groupId);
+    }
+    this.charts = [];
   }
 
   // ── Initialization ───────────────────────────────────
 
   private initChart(): void {
-    const el = this.chartContainer.nativeElement;
-    this.chart = echarts.init(el);
+    const panels = this.chartPanels?.toArray();
+    if (!panels || panels.length === 0) return;
 
-    this.resizeObserver = new ResizeObserver(() => this.chart?.resize());
-    this.resizeObserver.observe(el);
+    // Create an ECharts instance per panel
+    for (const panelRef of panels) {
+      const el = panelRef.nativeElement;
+      const chart = echarts.init(el);
+      this.charts.push(chart);
+
+      // ECharts events — datazoom debounced, dblclick resets
+      chart.on('datazoom', () => this.onDataZoom());
+      chart.on('dblclick', () => this.resetZoom());
+    }
+
+    // Connect panels for synchronized crosshairs, tooltips, and dataZoom
+    if (this.charts.length > 1) {
+      for (const chart of this.charts) {
+        chart.group = this.groupId;
+      }
+      echarts.connect(this.groupId);
+    }
+
+    // Observe resize on the panels container (parent of all panels)
+    const container = panels[0].nativeElement.parentElement;
+    if (container) {
+      this.resizeObserver = new ResizeObserver(() => {
+        for (const chart of this.charts) chart.resize();
+      });
+      this.resizeObserver.observe(container);
+    }
 
     const now = Date.now();
     this.timeRange = { startTs: now - this.activePreset, endTs: now };
     this.updateTimeRangeLabel();
 
-    // ECharts events
-    this.chart.on('datazoom', () => this.onDataZoom());
-    this.chart.on('dblclick', () => this.resetZoom());
-
-    this.updateChart();
+    this.updateAllCharts();
 
     // Auto-load from widget datasources if configured
     if (this.ctx.datasources?.length > 0) {
@@ -196,6 +228,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
         color: PEN_COLORS[i % PEN_COLORS.length],
         engUnits: '',
         yAxisIndex: 0,
+        panelIndex: 0,
         alarmLimits: { hh: null, h: null, l: null, ll: null },
         visible: true,
         data: [],
@@ -222,7 +255,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
     }
 
     this.pens = newPens;
-    this.assignYAxes();
+    this.assignPanelsAndAxes();
     await this.refreshAllPens();
 
     this.loading = false;
@@ -231,16 +264,54 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
     if (this.isLive) this.startLiveTimer();
   }
 
-  // ── Y-axis assignment ────────────────────────────────
+  // ── Panel & Y-axis assignment ─────────────────────────
 
-  private assignYAxes(): void {
-    const unitMap = new Map<string, number>();
+  private assignPanelsAndAxes(): void {
+    const panelCount = this.panelIndices.length;
+
+    if (panelCount <= 1) {
+      // Single panel: all pens on panel 0, Y-axes by unit
+      const unitMap = new Map<string, number>();
+      for (const pen of this.pens) {
+        pen.panelIndex = 0;
+        const unit = pen.engUnits || '?';
+        if (!unitMap.has(unit) && unitMap.size < 4) {
+          unitMap.set(unit, unitMap.size);
+        }
+        pen.yAxisIndex = unitMap.get(unit) ?? 0;
+      }
+      return;
+    }
+
+    // Multi-panel: group pens by engineering units, distribute groups across panels
+    const unitGroups = new Map<string, PenConfig[]>();
     for (const pen of this.pens) {
       const unit = pen.engUnits || '?';
-      if (!unitMap.has(unit) && unitMap.size < 4) {
-        unitMap.set(unit, unitMap.size);
+      if (!unitGroups.has(unit)) unitGroups.set(unit, []);
+      unitGroups.get(unit)!.push(pen);
+    }
+
+    let groupIdx = 0;
+    for (const [, groupPens] of unitGroups) {
+      const targetPanel = groupIdx % panelCount;
+      for (const pen of groupPens) {
+        pen.panelIndex = targetPanel;
+        pen.yAxisIndex = 0; // Each panel manages its own single Y-axis per group
       }
-      pen.yAxisIndex = unitMap.get(unit) ?? 0;
+      groupIdx++;
+    }
+
+    // Re-assign per-panel Y-axes (each panel can have up to 4 Y-axes)
+    for (let pi = 0; pi < panelCount; pi++) {
+      const panelPens = this.pens.filter(p => p.panelIndex === pi);
+      const unitMap = new Map<string, number>();
+      for (const pen of panelPens) {
+        const unit = pen.engUnits || '?';
+        if (!unitMap.has(unit) && unitMap.size < 4) {
+          unitMap.set(unit, unitMap.size);
+        }
+        pen.yAxisIndex = unitMap.get(unit) ?? 0;
+      }
     }
   }
 
@@ -258,7 +329,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
       await Promise.all(this.pens.map(pen => this.fetchAlarms(pen)));
     }
 
-    this.updateChart();
+    this.updateAllCharts();
     this.updateTimeRangeLabel();
     this.cdr.detectChanges();
   }
@@ -344,16 +415,20 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
 
   // ── Chart rendering ──────────────────────────────────
 
-  private updateChart(): void {
-    if (!this.chart) return;
-    this.chart.setOption(this.buildChartOptions(), { notMerge: true });
+  private updateAllCharts(): void {
+    for (let pi = 0; pi < this.charts.length; pi++) {
+      const chart = this.charts[pi];
+      chart.setOption(this.buildChartOptions(pi), { notMerge: true });
+    }
   }
 
-  private buildChartOptions(): echarts.EChartsOption {
-    // Y-axes keyed by index
+  private buildChartOptions(panelIndex: number): echarts.EChartsOption {
+    const panelPens = this.pens.filter(p => p.panelIndex === panelIndex);
+
+    // Y-axes for this panel
     const yAxes: any[] = [];
     const seenUnits = new Map<number, string>();
-    for (const pen of this.pens) {
+    for (const pen of panelPens) {
       if (!seenUnits.has(pen.yAxisIndex)) {
         seenUnits.set(pen.yAxisIndex, pen.engUnits || '');
       }
@@ -371,8 +446,8 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Series
-    const series: any[] = this.pens.map((pen, idx) => {
+    // Series for this panel
+    const series: any[] = panelPens.map((pen, idx) => {
       const s: any = {
         name: pen.deviceName,
         type: 'line',
@@ -385,7 +460,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
         animation: false
       };
 
-      // Alarm limit markLines on first pen per device (avoid duplicates)
+      // Alarm limit markLines
       if (this.settings.showAlarmLimits && pen.visible) {
         const lines = this.buildAlarmLimitLines(pen);
         if (lines.length > 0) {
@@ -393,7 +468,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
         }
       }
 
-      // Alarm overlay markArea — attach to first series only
+      // Alarm overlay markArea — attach to first series in this panel
       if (this.settings.showAlarmOverlays && idx === 0 && pen.alarms.length > 0) {
         s.markArea = this.buildAlarmOverlay(pen.alarms);
       }
@@ -401,18 +476,25 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
       return s;
     });
 
+    const isLastPanel = panelIndex === this.panelIndices.length - 1;
+    const isMultiPanel = this.panelIndices.length > 1;
+
     return {
       grid: {
         left: 60,
         right: yAxes.length > 2 ? 120 : 60,
         top: 24,
-        bottom: 56
+        bottom: isLastPanel ? 56 : (isMultiPanel ? 16 : 56)
       },
       xAxis: {
         type: 'time',
         min: this.timeRange.startTs,
         max: this.timeRange.endTs,
-        axisLabel: { fontSize: 10 },
+        axisLabel: {
+          fontSize: 10,
+          show: isLastPanel // Only show x-axis labels on last panel
+        },
+        axisTick: { show: isLastPanel },
         splitLine: { show: false }
       },
       yAxis: yAxes,
@@ -423,9 +505,11 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
         formatter: (params: any) => this.formatTooltip(params),
         confine: true
       },
-      dataZoom: [
+      dataZoom: isLastPanel ? [
         { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
         { type: 'slider', xAxisIndex: 0, bottom: 8, height: 20, borderColor: '#ccc' }
+      ] : [
+        { type: 'inside', xAxisIndex: 0, filterMode: 'none' }
       ],
       animation: false
     } as any;
@@ -535,7 +619,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
       }
 
       this.timeRange = { startTs: windowStart, endTs: now };
-      this.updateChart();
+      this.updateAllCharts();
       this.updateTimeRangeLabel();
       this.cdr.detectChanges();
     }, this.settings.autoRefreshMs);
@@ -577,7 +661,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
     }
 
     this.timeRange = { startTs: windowStart, endTs: now };
-    this.updateChart();
+    this.updateAllCharts();
   }
 
   // ── Time range & zoom ────────────────────────────────
@@ -605,10 +689,16 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
     this.zoomDebounce = setTimeout(() => this.handleZoomEnd(), 400);
   }
 
+  /**
+   * Progressive loading: after zoom ends, check if a higher-resolution
+   * aggregation level is appropriate for the new visible range.
+   * If so, re-fetch data at the finer granularity.
+   */
   private handleZoomEnd(): void {
-    if (!this.chart) return;
+    if (this.charts.length === 0) return;
 
-    const option = this.chart.getOption() as any;
+    // Read zoom state from the first chart (all are synced via echarts.connect)
+    const option = this.charts[0].getOption() as any;
     const dz = option?.dataZoom?.[0];
     if (dz?.startValue == null || dz?.endValue == null) return;
 
@@ -618,7 +708,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
 
     const newAgg = getAggregationConfig(visibleRange);
 
-    // Only re-fetch if aggregation level changed (zoomed in far enough)
+    // Only re-fetch if aggregation level changed (progressive loading)
     if (newAgg.interval !== this.currentAgg.interval) {
       this.timeRange = { startTs: visibleStart, endTs: visibleEnd };
       this.isLive = false;
@@ -647,7 +737,7 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
 
   togglePenVisibility(pen: PenConfig): void {
     pen.visible = !pen.visible;
-    this.updateChart();
+    this.updateAllCharts();
   }
 
   onPenDoubleClick(event: MouseEvent, pen: PenConfig): void {
@@ -693,11 +783,59 @@ export class W1TrendViewerComponent implements OnInit, OnDestroy {
   }
 
   exportPNG(): void {
-    if (!this.chart) return;
-    const url = this.chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+    if (this.charts.length === 0) return;
+
+    if (this.charts.length === 1) {
+      // Single panel — direct export
+      const url = this.charts[0].getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+      this.downloadDataUrl(url, `trend_export_${Date.now()}.png`);
+      return;
+    }
+
+    // Multi-panel — composite all panels into a single image
+    const urls = this.charts.map(c => c.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' }));
+    const images: HTMLImageElement[] = [];
+    let loaded = 0;
+
+    for (const url of urls) {
+      const img = new Image();
+      img.onload = () => {
+        loaded++;
+        if (loaded === urls.length) {
+          this.compositeAndDownload(images);
+        }
+      };
+      img.src = url;
+      images.push(img);
+    }
+  }
+
+  private compositeAndDownload(images: HTMLImageElement[]): void {
+    const canvas = document.createElement('canvas');
+    const c = canvas.getContext('2d');
+    if (!c) return;
+
+    const maxWidth = Math.max(...images.map(img => img.width));
+    const totalHeight = images.reduce((sum, img) => sum + img.height, 0);
+
+    canvas.width = maxWidth;
+    canvas.height = totalHeight;
+    c.fillStyle = '#fff';
+    c.fillRect(0, 0, maxWidth, totalHeight);
+
+    let y = 0;
+    for (const img of images) {
+      c.drawImage(img, 0, y);
+      y += img.height;
+    }
+
+    this.downloadDataUrl(canvas.toDataURL('image/png'), `trend_export_${Date.now()}.png`);
+  }
+
+  private downloadDataUrl(dataUrl: string, filename: string): void {
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `trend_export_${Date.now()}.png`;
+    a.href = dataUrl;
+    a.download = filename;
     a.click();
   }
 
