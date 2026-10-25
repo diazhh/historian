@@ -18,6 +18,8 @@ export * from './w6-batch-comparison/w6-batch-comparison.module';
 export * from './w6-batch-comparison/w6-batch-comparison.component';
 export * from './w7-tag-config/w7-tag-config.module';
 export * from './w7-tag-config/w7-tag-config.component';
+export * from './w8-data-grid/w8-data-grid.module';
+export * from './w8-data-grid/w8-data-grid.component';
 export * from '../../shared/models/index';
 export * from '../../shared/services/index';
 export * from '../../shared/utils/index';

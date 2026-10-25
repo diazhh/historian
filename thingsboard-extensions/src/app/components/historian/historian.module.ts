@@ -14,6 +14,7 @@ import { W4EventTimelineModule } from './w4-event-timeline/w4-event-timeline.mod
 import { W5AdhocQueryModule } from './w5-adhoc-query/w5-adhoc-query.module';
 import { W6BatchComparisonModule } from './w6-batch-comparison/w6-batch-comparison.module';
 import { W7TagConfigModule } from './w7-tag-config/w7-tag-config.module';
+import { W8DataGridModule } from './w8-data-grid/w8-data-grid.module';
 
 @NgModule({
   declarations: [],
@@ -26,7 +27,8 @@ import { W7TagConfigModule } from './w7-tag-config/w7-tag-config.module';
     W4EventTimelineModule,
     W5AdhocQueryModule,
     W6BatchComparisonModule,
-    W7TagConfigModule
+    W7TagConfigModule,
+    W8DataGridModule
   ],
   exports: [
     W1TrendViewerModule,
@@ -35,7 +37,8 @@ import { W7TagConfigModule } from './w7-tag-config/w7-tag-config.module';
     W4EventTimelineModule,
     W5AdhocQueryModule,
     W6BatchComparisonModule,
-    W7TagConfigModule
+    W7TagConfigModule,
+    W8DataGridModule
   ],
   providers: [
     TbApiService,

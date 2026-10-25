@@ -1,0 +1,62 @@
+<!-- W8 Data Grid - Template -->
+
+<!-- Toolbar -->
+<div class="grid-toolbar">
+  <div class="toolbar-group">
+    <label>Interval</label>
+    <select [(ngModel)]="selectedInterval" (ngModelChange)="onIntervalChange()">
+      <option *ngFor="let opt of intervalOptions" [ngValue]="opt.ms">{{ opt.label }}</option>
+    </select>
+  </div>
+
+  <span class="grid-meta" *ngIf="!loading && timestamps.length > 0">
+    {{ timestamps.length }} rows &times; {{ columns.length }} tags
+  </span>
+
+  <button class="btn-csv"
+          (click)="exportCSV()"
+          [disabled]="timestamps.length === 0 || columns.length === 0">
+    Export CSV
+  </button>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay" *ngIf="loading">Loading data...</div>
+
+<!-- Data table -->
+<ng-container *ngIf="!loading && timestamps.length > 0 && columns.length > 0">
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="col-ts">Timestamp</th>
+          <th *ngFor="let col of columns" class="col-value">
+            {{ columnHeader(col) }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let ts of pagedTimestamps">
+          <td class="col-ts">{{ formatTs(ts) }}</td>
+          <td *ngFor="let col of columns"
+              class="col-value"
+              [ngClass]="getCellClass(col, ts)">
+            {{ getCellValue(col, ts) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-pagination">
+    <button [disabled]="tablePage === 0" (click)="tablePage = tablePage - 1">Prev</button>
+    <span>Page {{ tablePage + 1 }} / {{ totalPages }}</span>
+    <button [disabled]="tablePage >= totalPages - 1" (click)="tablePage = tablePage + 1">Next</button>
+  </div>
+</ng-container>
+
+<!-- Empty state -->
+<div class="empty-state" *ngIf="!loading && (columns.length === 0 || timestamps.length === 0)">
+  <ng-container *ngIf="columns.length === 0">Select tags from the Tag Browser to display data.</ng-container>
+  <ng-container *ngIf="columns.length > 0 && timestamps.length === 0">No data found for the selected time range and interval.</ng-container>
+</div>

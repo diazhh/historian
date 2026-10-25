@@ -1,0 +1,193 @@
+///
+/// W8 Data Grid - Styles
+///
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #333;
+}
+
+// ── Toolbar ──────────────────────────────────────────
+
+.grid-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #757575;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  select {
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+    background: #fff;
+    outline: none;
+
+    &:focus {
+      border-color: #1976d2;
+    }
+  }
+}
+
+.grid-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: #888;
+}
+
+.btn-csv {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #4caf50;
+  border-radius: 3px;
+  background: #fff;
+  font-size: 11px;
+  color: #4caf50;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #e8f5e9;
+  }
+
+  &:disabled {
+    border-color: #ccc;
+    color: #ccc;
+    cursor: not-allowed;
+  }
+}
+
+// ── Table ────────────────────────────────────────────
+
+.table-container {
+  flex: 1;
+  overflow: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th {
+    position: sticky;
+    top: 0;
+    background: #f5f5f5;
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 2px solid #ddd;
+    white-space: nowrap;
+    z-index: 1;
+  }
+
+  td {
+    padding: 4px 10px;
+    border-bottom: 1px solid #eee;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  tr:nth-child(even) td {
+    background: #fafafa;
+  }
+
+  tr:hover td {
+    background: #e3f2fd;
+  }
+
+  .col-ts {
+    min-width: 160px;
+    color: #555;
+  }
+
+  .col-value {
+    min-width: 100px;
+    text-align: right;
+  }
+}
+
+// ── Alarm cell coloring ──────────────────────────────
+
+.cell-alarm-critical {
+  background: #ffcdd2 !important;
+  color: #b71c1c;
+  font-weight: 500;
+}
+
+.cell-alarm-warning {
+  background: #ffe0b2 !important;
+  color: #e65100;
+  font-weight: 500;
+}
+
+// ── Pagination ───────────────────────────────────────
+
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 12px;
+
+  button {
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: #f5f5f5;
+    }
+
+    &:disabled {
+      color: #ccc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ── Loading & Empty ──────────────────────────────────
+
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #888;
+  font-size: 13px;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #aaa;
+  font-size: 13px;
+}
